@@ -3,3 +3,6 @@ git_ragStockAdvisor.code-workspace
 
 # Environment
 .env
+
+# Virtual Environment
+.venv/

@@ -20,6 +20,13 @@ LLM 응답 ("지금 매수는 신중, 이유는…")
 - 언어 : Python
 - 개발환경 : VS Code
 
+### 1-3. 필요 라이브러리
+- `requirements.txt`에 저장 : `pip freeze > requirements.txt`
+``` bash
+pip install openai
+pip install fastapi
+```
+
 ## 2. MVP 설계
 ``` text
 사용자 질문
