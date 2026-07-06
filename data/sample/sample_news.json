@@ -1,0 +1,18 @@
+[
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "title": "삼성전자 반도체 업황 회복 기대",
+    "summary": "메모리 반도체 가격 회복 가능성이 제기되고 있습니다.",
+    "sentiment": "positive",
+    "published_date": "2026-07-07"
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "title": "삼성전자 단기 수급 부담 지속",
+    "summary": "외국인 매도세와 단기 변동성 확대가 주가 부담 요인으로 거론되고 있습니다.",
+    "sentiment": "negative",
+    "published_date": "2026-07-07"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "current_price": 78500,
+    "change_rate": -1.2,
+    "trend": "최근 5거래일 약세",
+    "base_date": "2026-07-07"
+  }
+]
