@@ -43,7 +43,43 @@ AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_
 
 ## 3. 데이터 설계
 
-### 3-1. 주식 데이터
+### 3-1. 데이터 흐름
+- 원본 데이터 `data/raw/` -> 전처리 `data/processed/` -> 청킹 `data/chunks/` -> 임베딩 및 FAISS 벡터 인덱스 `data/vector_store/faiss/`
+
+### 3-2. 주식 데이터
+- JSON 필드 구조 (raw 데이터 기준)
+``` json
+[
+  # 거래일별 가격/거래량 원본 데이터
+  # data/raw/prices/005930_daily.json
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "date": "2026-07-16",     # 거래일
+    "open": 79300,            # 시가
+    "high": 79600,            # 고가
+    "low": 78000,             # 저가
+    "close": 78200,           # 종가
+    "volume": 16800000        # 거래량
+  }
+]
+```
+- JSON 필드 구조 (processed 데이터 기준)
+``` json
+[
+  # data/processed/prices/005930_trend.json
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-07-07",
+    "recent_days": 5,             # 최근 몇 거래일 기준인지
+    "recent_return_rate": -1.875, # recent_days 동안의 수익률
+    "up_days": 1,                 # 상승 거래일 수
+    "down_days": 4,               # 하락 거래일 수
+    "trend": "최근 5거래일 약세"    # 사람이 읽기 쉬운 가격 흐름 요약
+  }
+]
+```
 - JSON 필드 구조 (sample 데이터 기준)
 ``` json
 [
@@ -52,13 +88,27 @@ AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_
     "stock_code": "005930",         # 종목코드
     "current_price": 78500,         # 현재가
     "change_rate": -1.2,            # 등락률
-    "trend": "최근 5거래일 약세",     # 최근 흐름 요약
+    "trend": "최근 5거래일 약세",     # 최근 흐름 요약 (원본 데이터를 계산하여 생성)
     "base_date": "2026-07-07"      # 시세 기준일
   }
 ]
 ```
 
-### 3-2. 뉴스 데이터
+#### 3-2-1. 주식 실시간 데이터
+- 실시간 현재가를 API 직접 조회
+- Vector DB와 raw 데이터 모두 저장하지 않음
+- JSON 필드 구조
+``` json
+{
+  "stock_name": "삼성전자",
+  "stock_code": "005930",
+  "current_price": 78500,
+  "change_rate": -1.2,
+  "base_date": "2026-07-07"
+}
+```
+
+### 3-3. 뉴스 데이터
 - JSON 필드 구조 (sample 데이터 기준)
 ``` json
 [
@@ -73,15 +123,12 @@ AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_
 ]
 ```
 
-### 3-3. 데이터 흐름
-- 원본 데이터 `data/raw/` -> 전처리 `data/processed/` -> 청킹 `data/chunks/` -> 임베딩 및 FAISS 벡터 인덱스 `data/vector_store/faiss/`
-
 ## 4. 데이터 수집 및 전처리
 
 #### 4-1. RAG 활용
 - Vector DB에 저장 후 RAG 검색
 - 대상 : 공시 문서, 기업 사업보고서, 뉴스 기사 요약, 리포트 요약, 종목별 과거 이슈
-- 현재가 등의 실시간 데이터는 API로 직접 조회
+- 현재가는 API로 직접 실시간 데이터 조회
 
 <!--
 ```
