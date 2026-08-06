@@ -8,6 +8,11 @@
 - `sample_news_loader.py`
   - data/sample/sample_news.json 읽기
   - 종목명 기준 뉴스 목록 반환
+``` bash
+# powershell 테스트
+python -c "from src.data_loaders.sample_stock_loader import load_latest_sample_stock; print(load_latest_sample_stock('삼성전자'))"
+python -c "from src.data_loaders.sample_stock_loader import load_latest_sample_stock; print(load_latest_sample_stock('LG'))"
+```
 
 #### Question Parser
 - `stock_question_parser.py`

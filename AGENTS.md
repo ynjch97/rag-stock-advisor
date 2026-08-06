@@ -8,6 +8,7 @@ main.py                             # 프로그램 시작 파일 (질문을 입�
 requirements.txt                    # Python 패키지 목록
 
 docs/                               # 개발 관련 문서 정리
+  dev_log.md
 
 data/
   sample/
@@ -16,6 +17,15 @@ data/
 
 src/
   __init__.py
+
+  config/
+    __init__.py
+    paths.py                        # data/raw, processed, chunks, vector_store 경로 관리
+
+  data_loaders/
+    __init__.py
+    sample_stock_loader.py          # data/sample/sample_stocks.json 읽기
+    sample_news_loader.py           # data/sample/sample_news.json 읽기
 ```
 
 # 질문 유형
