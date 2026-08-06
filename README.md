@@ -38,7 +38,9 @@ pip install fastapi
 ↓
 주가/뉴스 정보 가져오기 (sample_stock_loader.py, sample_news_loader.py)
 ↓
-AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_service.py)
+주가/뉴스 컨텍스트 구성 (stock_context_service.py)
+↓
+AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ```
 
 ## 3. 데이터 설계
@@ -46,7 +48,7 @@ AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_
 ### 3-1. 데이터 흐름
 - 원본 데이터 `data/raw/` -> 전처리 `data/processed/` -> 청킹 `data/chunks/` -> 임베딩 및 FAISS 벡터 인덱스 `data/vector_store/faiss/`
 
-### 3-2. 주식 데이터
+### 3-2. 주가 데이터
 - JSON 필드 구조 (raw 데이터 기준)
 ``` json
 [
@@ -94,7 +96,7 @@ AI가 자연어로 간단 분석 응답 (stock_context_service.py, stock_advice_
 ]
 ```
 
-#### 3-2-1. 주식 실시간 데이터
+#### 3-2-1. 주가 실시간 데이터
 - 실시간 현재가를 API 직접 조회
 - Vector DB와 raw 데이터 모두 저장하지 않음
 - JSON 필드 구조

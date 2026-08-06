@@ -43,12 +43,14 @@ data/
     sample_news.json                 # MVP용 샘플 뉴스 데이터
 
   raw/
+    prices/                          # 수집한 원본 주가 데이터
     news/                            # 수집한 원본 뉴스 데이터
     reports/                         # 수집한 원본 리포트 데이터
     disclosures/                     # 수집한 원본 공시 데이터
     financials/                      # 수집한 원본 재무 데이터
 
   processed/
+    prices/                          # 전처리된 주가 데이터
     news/                            # 전처리된 뉴스 데이터
     reports/                         # 전처리된 리포트 데이터
     disclosures/                     # 전처리된 공시 데이터

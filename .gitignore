@@ -6,3 +6,7 @@ git_ragStockAdvisor.code-workspace
 
 # Virtual Environment
 .venv/
+
+# Python
+__pycache__/
+*.py[cod]
