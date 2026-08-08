@@ -26,6 +26,10 @@ src/
     __init__.py
     sample_stock_loader.py          # data/sample/sample_stocks.json 읽기
     sample_news_loader.py           # data/sample/sample_news.json 읽기
+
+  parsers/
+    __init__.py
+    stock_question_parser.py        # 사용자 질문에서 종목명, 의도, 기간 추출
 ```
 
 # 질문 유형
