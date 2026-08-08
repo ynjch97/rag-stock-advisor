@@ -11,7 +11,7 @@
 ``` bash
 # powershell 테스트
 python -c "from src.data_loaders.sample_stock_loader import load_latest_sample_stock; print(load_latest_sample_stock('삼성전자'))"
-python -c "from src.data_loaders.sample_stock_loader import load_latest_sample_stock; print(load_latest_sample_stock('LG'))"
+python -c "from src.data_loaders.sample_news_loader import load_recent_sample_news; print(load_recent_sample_news('삼성전자', limit=3))"
 ```
 
 #### Question Parser
