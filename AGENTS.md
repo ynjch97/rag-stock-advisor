@@ -30,6 +30,11 @@ src/
   parsers/
     __init__.py
     stock_question_parser.py        # 사용자 질문에서 종목명, 의도, 기간 추출
+
+  services/
+    __init__.py
+    stock_context_service.py        # 주가/뉴스/Hybrid Search 결과를 분석 컨텍스트로 구성
+    stock_advice_service.py         # 자연어 투자 분석 응답 생성
 ```
 
 # 질문 유형
