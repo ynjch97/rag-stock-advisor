@@ -1,5 +1,6 @@
 # RAG Stock Advisor
 - 뉴스·전망·시세 데이터를 종합 분석하는 RAG 기반 주식 투자 의사결정 지원 시스템
+- 실행 : `python -X utf8 main.py --mode cli`
 
 ## 1. 설계
 
@@ -29,6 +30,7 @@ pip install openai
 pip install fastapi
 ```
 - `requirements.txt`에 저장 : `pip freeze > requirements.txt`
+- `requirements.txt` 내용대로 설치 : `pip install -r requirements.txt`
 
 ## 2. MVP 설계
 ``` text

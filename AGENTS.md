@@ -21,6 +21,10 @@ src/
   config/
     __init__.py
     paths.py                        # data/raw, processed, chunks, vector_store 경로 관리
+    
+  app/
+    __init__.py
+    stock_advice_workflow.py        # 질문 분석부터 최종 응답까지 전체 흐름 실행
 
   data_loaders/
     __init__.py
