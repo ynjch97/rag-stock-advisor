@@ -1,13 +1,15 @@
+from src.parsers.stock_question_parser import ParsedQuestion
 from src.services.stock_context_service import build_stock_context
 
 
 def test_build_stock_context_combines_question_stock_and_news():
     context = build_stock_context(
-        parsed_question={
-            "original_question": "삼성전자 사도 될까?",
-            "stock_name": "삼성전자",
-            "intent": "buy_opinion",
-        },
+        parsed_question=ParsedQuestion(
+            original_question="삼성전자 사도 될까?",
+            stock_name="삼성전자",
+            stock_code="005930",
+            intent="buy_opinion",
+        ),
         stock_data={
             "stock_name": "삼성전자",
             "stock_code": "005930",

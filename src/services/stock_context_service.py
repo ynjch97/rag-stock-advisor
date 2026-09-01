@@ -1,7 +1,6 @@
 from typing import Any
+from src.parsers.stock_question_parser import ParsedQuestion
 
-
-ParsedQuestion = dict[str, Any]
 StockRecord = dict[str, Any]
 NewsRecord = dict[str, Any]
 StockContext = dict[str, Any]
@@ -17,8 +16,8 @@ def build_stock_context(
 ) -> StockContext:
     return {
         "question": {
-            "original_question": parsed_question["original_question"],
-            "intent": parsed_question["intent"],
+            "original_question": parsed_question.original_question,
+            "intent": parsed_question.intent,
         },
         "stock": {
             "stock_name": stock_data["stock_name"],
