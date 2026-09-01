@@ -32,7 +32,7 @@ pip install fastapi
 - `requirements.txt`에 저장 : `pip freeze > requirements.txt`
 - `requirements.txt` 내용대로 설치 : `pip install -r requirements.txt`
 
-## 2. MVP 설계
+### 1-4. MVP 설계
 ``` text
 사용자 질문 (stock_advice_workflow.py)
 ↓
@@ -45,12 +45,12 @@ pip install fastapi
 AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ```
 
-## 3. 데이터 설계
+## 2. 데이터 설계
 
-### 3-1. 데이터 흐름
+### 2-1. 데이터 흐름
 - 원본 데이터 `data/raw/` -> 전처리 `data/processed/` -> 청킹 `data/chunks/` -> 임베딩 및 FAISS 벡터 인덱스 `data/vector_store/faiss/`
 
-### 3-2. 주가 데이터
+### 2-2. 주가 데이터
 - JSON 필드 구조 (raw 데이터 기준)
 ``` json
 [
@@ -98,7 +98,7 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ]
 ```
 
-#### 3-2-1. 주가 실시간 데이터
+#### 2-2-1. 주가 실시간 데이터
 - 실시간 현재가를 API 직접 조회
 - Vector DB와 raw 데이터 모두 저장하지 않음
 - JSON 필드 구조
@@ -112,7 +112,7 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 }
 ```
 
-### 3-3. 뉴스 데이터
+### 2-3. 뉴스 데이터
 - JSON 필드 구조 (sample 데이터 기준)
 ``` json
 [
@@ -127,12 +127,51 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ]
 ```
 
-## 4. 데이터 수집 및 전처리
+## 3. 데이터 수집 및 전처리
 
-#### 4-1. RAG 활용
+### 3-1. RAG 활용
 - Vector DB에 저장 후 RAG 검색
 - 대상 : 공시 문서, 기업 사업보고서, 뉴스 기사 요약, 리포트 요약, 종목별 과거 이슈
 - 현재가는 API로 직접 실시간 데이터 조회
+
+## 4. 시스템 아키텍처
+
+### 4-1. User Query
+- 사용자의 자연어 질문이 입력되는 단계
+- "삼성전자 왜 올랐어?" -> 이후 모듈에서 분석 가능하도록 의미 단위로 해석됨
+
+### 4-2. Query Analyzer
+- 종목명 등의 핵심 엔티티 분석 및 질의 의도 추출
+- 비정형 자연어를 검색에 적합한 형태로 변환 + 필요 시 키워드 확장(Query Rewriting)
+
+### 4-3. Agent Controller
+- 질의의 복잡도를 판단하고, 어떤 데이터를 어떤 순서로 검색할지 전략을 결정하는 핵심 모듈
+  - *주가 하락 원인 : 최근 주가 흐름 확인 → 관련 뉴스/공시 검색 → 원인 후보 정리*
+  - *매수 판단 질문 : 현재가/추세 확인 → 뉴스/리포트 검색 → 리스크/긍정 요인 비교*
+- 중간 결과를 바탕으로 추가 검색을 수행하는 멀티 스텝 Retrieval 및 Reasoning -> 단순 RAG를 넘어서는 Agentic RAG 구조를 구현
+
+### 4-4. Retriever Layer
+- 뉴스 데이터
+  - Embedding Model을 통해 벡터화되어 Vector DB에 저장됨
+  - 유사도 계산(Cosine Similarity 등)을 통해 관련 문서 검색
+  - 하이브리드 검색(Hybrid Search) 적용
+  - BM25 알고리즘을 통한 정확한 키워드 일치 검색 + 코사인 유사도(Cosine Similarity)를 활용한 Vector Search
+    - BM25 : "삼성전자", "주가", "인수"
+    - Vector Search : "주가 왜 올랐어?" <-> "매수세 증가", "계약 체결" 연결
+  - 이후 `공시 문서, 기업 사업보고서` 등의 **텍스트 문서 데이터** 추가 예정
+- 주가 데이터
+  - 정형 데이터이므로 벡터 검색이 아닌 거래일 조건 기반 필터링 및 시계열 조회 방식
+
+### 4-5. Context Builder
+- LLM 입력용 컨텍스트 구성
+- 주가/뉴스 데이터를 LLM 입력에 적합한 순서로 정렬하고 재구성
+  - *향후 고도화 방안 : 지식 그래프 구조를 활용하여 데이터 간 관계를 정렬하고, 기준에 따라 순서를 재배열(Re-ranking)*
+- 불필요한 정보는 제거하고 핵심 정보만 유지 -> LLM이 정확한 추론을 수행하도록 함
+
+### 4-6. LLM Generator
+- 구성된 컨텍스트를 기반으로 뉴스와 주가 간의 관계를 분석하고 자연어 응답을 생성
+- 단순 요약이 아닌 원인(뉴스/공시/리포트 등) → 결과(주가) 구조
+- 원본 검색 데이터와 대조하는 검증 절차를 포함해 Hallucination을 최소화하고 신뢰성을 확보
 
 <!--
 ```
