@@ -134,6 +134,11 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 - 대상 : 공시 문서, 기업 사업보고서, 뉴스 기사 요약, 리포트 요약, 종목별 과거 이슈
 - 현재가는 API로 직접 실시간 데이터 조회
 
+### 3-2. 주가 데이터
+- 현재가·등락률 : API로 실시간 조회하고 별도 저장하지 않음
+- 일별 OHLCV : API에서 수집하여 `data/raw/prices/`에 저장
+- 추세 정보 : OHLCV를 계산하여 `data/processed/prices/`에 저장
+
 ## 4. 시스템 아키텍처
 
 ### 4-1. User Query

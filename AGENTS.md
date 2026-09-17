@@ -1,8 +1,9 @@
 # 폴더 구조 및 파일 설명
+- 프로젝트에 대한 자세한 설명은 `README.md` 참고
 ``` text
 README.md                           # 개발 관련 내용
 AGENTS.md                           # 개발 규칙
-.env                                # 환경변수 관리
+.env                                # 환경변수 관리 (API 키 정보)
 .venv                               # 가상환경
 main.py                             # 프로그램 시작 파일 (질문을 입력받고 전체 흐름을 실행)
 requirements.txt                    # Python 패키지 목록
@@ -21,10 +22,15 @@ src/
   config/
     __init__.py
     paths.py                        # data/raw, processed, chunks, vector_store 경로 관리
+    settings.py                     # .env 로딩 및 앱 설정 관리
     
   app/
     __init__.py
     stock_advice_workflow.py        # 질문 분석부터 최종 응답까지 전체 흐름 실행
+
+  domain/
+    __init__.py
+    stock_models.py                 # 주가 데이터 구조
 
   data_loaders/
     __init__.py
@@ -41,12 +47,30 @@ src/
     stock_advice_service.py         # 자연어 투자 분석 응답 생성
 ```
 
-# 질문 유형
+# 개발 완료 시 예상 질문 유형
 - A 종목 사도 될까?
 - A 종목 하락하는 이유 뭐야?
 
-# 테스트
+# 코딩 스타일 규칙
+- 파일명 : snake_case.py
+- 함수명 : snake_case (내부 함수는 앞에 _ 추가)
+- 클래스명 : PascalCase
+- 4-space indentation (4칸 들여쓰기를 사용)
+
+# 보안 관련
+- 비밀키는 환경 변수 사용 `OPENAI_API_KEY=<your-key>`
+- 개인정보, 유료 API 응답 등은 올리지 말 것
+
+# 테스트 관련
+- 단순 모델 정의(`src/domain`), 환경변수 로딩 및 경로 관리(`src/config`) 등은 테스트 파일을 생성할 필요 없음
 - `pytest` 사용
+
+# 주의사항
+- 함수 이름을 실제 역할 기준으로 지을 것
+  - get_data() 보다는 retrieve_policy_documents()
+- 문서 파싱, 임베딩, CSV 처리 등은 검증된 라이브러리 사용
+- API 키를 코드에 직접 작성하지 말 것
+- 테스트 코드 : `tests/test_<module>.py`와 같은 명명 규칙을 따름
 
 <!--
 최종 폴더 구조 예상
@@ -112,7 +136,7 @@ src/
     search_models.py                 # 검색 결과, Hybrid Search 결과 구조
     advice_models.py                 # 질문 분석 결과, 최종 응답 구조
 
-  data_collection/
+  collectors/
     __init__.py
     stock_price_collector.py         # 주가/시세 데이터 수집
     news_collector.py                # 뉴스 데이터 수집

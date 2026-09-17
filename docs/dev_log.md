@@ -45,3 +45,8 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 
 #### pytest
 - pytest로 최소 테스트 추가
+
+### 2. 데이터 수집
+
+#### 모델 정의
+- `stock_models.py` : 실시간 시세, 일별 OHLCV, 주가 추세 각각의 클래스 정의
