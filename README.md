@@ -200,7 +200,9 @@ $result
 - 상/하한가 조회 (`GET /api/v1/price-limits`)
   - ``
 - 캔들(OHLCV) 차트 조회​ (`GET /api/v1/candles`)
-  - 기간 설정 : `?symbols=005930&interval=1m`
+  - `?symbol=005930&interval=1d&count=1&before=2026-10-07T23:59:59+09:00`
+  - 일봉, count로 한 건만 조회, 지정 날짜의 데이터 조회
+  - `{"result":{"candles":[{"timestamp":"2026-10-07T00:00:00.000+09:00","openPrice":"272000","highPrice":"279500","lowPrice":"268000","closePrice":"269000","volume":"24741933","currency":"KRW"}],"nextBefore":"2026-10-06T00:00:00.000+09:00"}}`
 ``` json
 {
   "result": {
@@ -269,7 +271,8 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/candles?symbols=005930&interv
   -H "Authorization: Bearer $($response.access_token)"
 curl.exe -s "https://openapi.tossinvest.com/api/v1/prices?symbols=005930%2C000660" `
   -H "Authorization: Bearer $($response.access_token)"
-  
+curl.exe -s "https://openapi.tossinvest.com/api/v1/market-calendar/KR" `
+  -H "Authorization: Bearer $($response.access_token)"  
 curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/000660/investor-trading" `
   -H "Authorization: Bearer $($response.access_token)"
 -->

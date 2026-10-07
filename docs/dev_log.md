@@ -50,3 +50,27 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 
 #### 모델 정의
 - `stock_models.py` : 실시간 시세, 일별 OHLCV, 주가 추세 각각의 클래스 정의
+  - RealtimeStock : 실시간 시세
+  - DailyStock : 일별 OHLCV 저장
+  - StockTrend : 주가 추세 정보
+
+#### Data Collector
+- `stock_token_manager.py`
+  - 주가 데이터 수집용 토큰 발급
+- `stock_collector.py`
+  - `sample_stock_loader.py` 대신 실제 데이터 반영
+  - 질문에 대한 주가 데이터 수집 -> RealtimeStock 실시간 주가 조회 + DailyStock 데이터 저장
+- 데이터 조회
+  - `/api/v1/candles?symbol=005930&interval=1d&count=1&before=2026-10-07T23:59:59+09:00`
+    - 종목 번호, 조회일 데이터 변수로 활용
+- 데이터 저장
+  - 정규 시장 전/후 : 당일 마감/직전 영업일 데이터 조회 후 DailyStock 저장
+  - 정규 시장 중 : 실시간 데이터 조회 (저장 X)
+  - 휴장일 판단은 `/api/v1/market-calendar/KR` API 조회 기준으로 함
+
+#### Data Preprocessing
+- `stock_preprocessor.py`
+  - 주가 데이터 전처리 후 StockTrend 저장
+
+
+  

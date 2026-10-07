@@ -15,6 +15,12 @@ data/
   sample/
     sample_stocks.json              # MVP용 샘플 주가 데이터
     sample_news.json                # MVP용 샘플 뉴스 데이터
+    
+  raw/
+    prices/                         # 수집한 원본 주가 데이터
+
+  processed/
+    prices/                         # 전처리된 주가 데이터
 
 src/
   __init__.py
@@ -36,6 +42,15 @@ src/
     __init__.py
     sample_stock_loader.py          # data/sample/sample_stocks.json 읽기
     sample_news_loader.py           # data/sample/sample_news.json 읽기
+
+  collectors/
+    __init__.py
+    stock_token_manager.py          # 주가 데이터 수집용 토큰 발급 및 캐시 구현
+    stock_collector.py              # 주가 데이터 수집 및 저장
+
+  preprocessing/
+    __init__.py
+    stock_preprocessor.py           # 주가 데이터 전처리 및 저장
 
   parsers/
     __init__.py
@@ -138,7 +153,7 @@ src/
 
   collectors/
     __init__.py
-    stock_price_collector.py         # 주가/시세 데이터 수집
+    stock_collector.py         # 주가/시세 데이터 수집
     news_collector.py                # 뉴스 데이터 수집
     report_collector.py              # 증권사 리포트/전망 데이터 수집
     disclosure_collector.py          # 공시 데이터 수집

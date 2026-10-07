@@ -20,6 +20,8 @@ class Settings:
     openai_embedding_model: str
     stock_api_provider: str | None
     stock_api_key: str | None
+    stock_api_secret: str | None
+    stock_api_url: str | None
     news_api_provider: str | None
     news_api_key: str | None
     vector_db_provider: str
@@ -47,6 +49,8 @@ def load_settings(env_path: Path = ENV_PATH) -> Settings:
         ),
         stock_api_provider=get_value("STOCK_API_PROVIDER"),
         stock_api_key=get_value("STOCK_API_KEY"),
+        stock_api_secret=get_value("STOCK_API_SECRET"),
+        stock_api_url=get_value("STOCK_API_URL"),
         news_api_provider=get_value("NEWS_API_PROVIDER"),
         news_api_key=get_value("NEWS_API_KEY"),
         vector_db_provider=get_value("VECTOR_DB_PROVIDER", "faiss") or "faiss",
