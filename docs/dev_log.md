@@ -46,7 +46,18 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 #### pytest
 - pytest로 최소 테스트 추가
 
-### 2. 데이터 수집
+### 2. 전체 종목 수집
+
+#### stock_name_code.json
+- 주가 데이터 매핑 정보 저장 (`?market=KOSPI`, `?market=KOSDAQ` 조회 데이터 모두 한 파일에 저장 및 조회)
+- `stock_reference_collector.py` : 전체 종목 수집 및 매핑 파일 저장·갱신
+- `stock_reference_loader.py` : 저장된 매핑 파일 로딩
+- `paths.py` : 매핑 파일 경로 추가
+
+#### stock_question_parser.py
+- `sample_stock_loader` 대신 `stock_reference_loader` 로 변경
+
+### 3. 주가 데이터 수집/전처리
 
 #### 모델 정의
 - `stock_models.py` : 실시간 시세, 일별 OHLCV, 주가 추세 각각의 클래스 정의
@@ -71,6 +82,3 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 #### Data Preprocessing
 - `stock_preprocessor.py`
   - 주가 데이터 전처리 후 StockTrend 저장
-
-
-  

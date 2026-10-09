@@ -42,11 +42,13 @@ src/
     __init__.py
     sample_stock_loader.py          # data/sample/sample_stocks.json 읽기
     sample_news_loader.py           # data/sample/sample_news.json 읽기
+    stock_reference_loader.py       # 저장된 매핑 파일 로딩
 
   collectors/
     __init__.py
     stock_token_manager.py          # 주가 데이터 수집용 토큰 발급 및 캐시 구현
     stock_collector.py              # 주가 데이터 수집 및 저장
+    stock_reference_collector.py    # 전체 종목 수집 및 매핑 파일 저장·갱신
 
   preprocessing/
     __init__.py

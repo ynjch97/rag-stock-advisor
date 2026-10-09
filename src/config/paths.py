@@ -11,6 +11,10 @@ SAMPLE_DATA_DIR = DATA_DIR / "sample"
 SAMPLE_STOCKS_PATH = SAMPLE_DATA_DIR / "sample_stocks.json"
 SAMPLE_NEWS_PATH = SAMPLE_DATA_DIR / "sample_news.json"
 
+# Reference data
+REFERENCE_DATA_DIR = DATA_DIR / "reference"
+STOCK_NAME_CODE_PATH = REFERENCE_DATA_DIR / "stock_name_code.json"
+
 # Raw data
 RAW_DATA_DIR = DATA_DIR / "raw"
 RAW_PRICES_DIR = RAW_DATA_DIR / "prices"

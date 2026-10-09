@@ -275,7 +275,23 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/market-calendar/KR" `
   -H "Authorization: Bearer $($response.access_token)"  
 curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/000660/investor-trading" `
   -H "Authorization: Bearer $($response.access_token)"
+
+stock_collector.py 구현
+stock_question_parser.py 
+종목명 추출, 종목코드로 변환 후 조회
 -->
+
+#### 3-2-3. 전체 종목 데이터 저장
+- 사용자 쿼리에서 추출한 종목명과 종목코드를 매핑하기 위함
+  - 미리 수집된 데이터에서 매핑되는 코드 확보
+  - 파일이 없거나, 종목명이 존재하지 않으면 데이터 갱신 -> `/data/reference/stock_name_code.json`
+- 마켓별 전체 종목 조회
+``` bash
+curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSPI" `
+  -H "Authorization: Bearer $($response.access_token)"
+curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
+  -H "Authorization: Bearer $($response.access_token)"
+```
 
 ### 3-3. 뉴스 데이터
 
