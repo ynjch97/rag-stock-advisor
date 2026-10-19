@@ -293,6 +293,26 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   -H "Authorization: Bearer $($response.access_token)"
 ```
 
+#### 3-2-4. 주가 데이터 조회 기준
+- `/api/v1/market-calendar/KR` API 조회 기준으로 함
+  - 정규장 종료의 기준은 `today.integrated.regularMarket.endTime`을 기준으로 함
+- 캔들(OHLCV) 차트 조회 활용​ (`GET /api/v1/candles`) + 장중에는 현재가 조회도 가능 (`GET /api/v1/prices`)
+- `today.integrated == null` 이면 휴장일이므로, `previousBusinessDay.date`의 마감 데이터
+- `today.integrated != null`
+  - 현재 시각 < 정규장 시작 :	`previousBusinessDay.date`의 마감 데이터
+  - 정규장 시작 ≤ 현재 시각 < 정규장 종료 : 실시간 데이터 (저장 X)
+  - 현재 시각 ≥ 정규장 종료 : `today.date`의 마감 데이터
+- 실시간 데이터를 제외한 주가 데이터는 **DailyStock(일별 OHLCV)**으로 저장
+  - 필요 시 전처리 후 **StockTrend(추세 정보)** 저장도 함께 실행
+
+### 3-2-5. 주가 데이터 전처리 기준
+- 해당 종목의 StockTrend 파일이 없거나, 새로운 거래일의 DailyStock이 추가되었을 경우 전처리 실행
+- 전처리 데이터는 최근 5거래일을 기준으로 추세를 분석하여 생성 (일봉 5개를 의미)
+  - 장중 실시간 데이터는 저장하지 않음
+  - 직전 완료 거래일까지의 DailyStock이 해당됨 (정규장 종료 후에는 당일)
+  - DailyStock에 최근 5거래일의 데이터 중 누락된 데이터가 있다면 모두 조회 필요
+  - 수익률 계산 : `rate = (마지막 종가 / 첫 번째 종가 - 1) × 100`
+
 ### 3-3. 뉴스 데이터
 
 ## 4. 시스템 아키텍처
