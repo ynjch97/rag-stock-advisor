@@ -69,16 +69,33 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 - `stock_token_manager.py`
   - 주가 데이터 수집용 토큰 발급
 - `stock_collector.py`
+  - `/api/v1/market-calendar/KR`로 데이터 조회 기준 파악
+    - 실시간 데이터 조회 여부 및 일별 OHLCV 조회 기준일
   - `stock_reference_loader.py` -> 질문과 일치하는 종목코드/종목명 매핑
-  -  주가 데이터 수집 -> RealtimeStock 실시간 주가 조회 + DailyStock 데이터 저장
-- 데이터 조회
-  - `/api/v1/candles?symbol=005930&interval=1d&count=1&before=2026-10-07T23:59:59+09:00`
-    - 종목 번호, 조회일 데이터 변수로 활용
-- 데이터 저장
-  - 정규장 전/후 : 직전 영업일/당일 마감 데이터 조회 후 DailyStock 저장
-  - 정규장 중 : 실시간 데이터 조회 (저장 X)
-  - 휴장일 판단은 `/api/v1/market-calendar/KR` API 조회 기준으로 함
+    - 장중에는 RealtimeStock 실시간 주가 조회 (저장 X)
+    - DailyStock 데이터 존재하지 않으면 조회 -> `data/raw/prices/[종목코드]_daily.json`에 저장
+    - StockTrend 데이터 존재하지 않으면 누락된 거래일 추가 조회 -> `data/processed/prices/[종목코드]_trend.json`에 저장
+- `[종목코드]_daily.json`
+  - 같은 날짜는 교체하고, 날짜 순으로 정렬하여 저장
 
 #### Data Preprocessing
 - `stock_preprocessor.py`
   - 주가 데이터 전처리 후 StockTrend 저장
+- `[종목코드]_trend.json`
+  - 일봉 5개로 수익률, 상승/하락 횟수, 추세 요약 등을 계산/분석하여 저장
+  - 같은 날짜는 교체하고, 날짜 순으로 정렬하여 저장
+
+#### 조립 및 연결
+- `stock_advice_workflow.py`
+  - 조회·전처리 호출 추가
+  - `STOCK_API_PROVIDER=toss`로 설정하여 실제 조회 사용하도록 함
+  - RealtimeStock, DailyStock, StockTrend 를 기존 컨텍스트와 응답 생성 모듈에 전달
+
+#### 테스트
+- 휴장일, 장 시작 직전, 장중, 장 종료 시각 이후 등의 시점별 테스트 필요
+
+### 4. 질문 분석
+
+#### Question Parser
+- `stock_question_parser.py`
+  - LLM 기반으로 비정형 표현의 의도/기간 추출

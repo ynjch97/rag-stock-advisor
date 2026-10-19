@@ -1,4 +1,15 @@
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
+
+
+@dataclass(frozen=True)
+class MarketStatus:
+    status: Literal["holiday", "before_market", "regular_market", "after_market"]
+    base_date: str
+    latest_completed_date: str
+    is_realtime: bool
+    checked_at: datetime
 
 
 @dataclass(frozen=True)
