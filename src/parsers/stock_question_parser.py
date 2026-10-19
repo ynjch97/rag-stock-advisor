@@ -1,7 +1,8 @@
 from dataclasses import dataclass, asdict
-from typing import Any
+import re
 
-from src.data_loaders.sample_stock_loader import load_sample_stocks
+from src.collectors.stock_reference_collector import refresh_stock_references
+from src.data_loaders.stock_reference_loader import load_stock_references
 
 BUY_OPINION_KEYWORDS = ["사도", "매수", "살까", "사야", "진입"]
 DECLINE_REASON_KEYWORDS = ["하락", "떨어", "빠지", "급락", "약세"]
@@ -13,6 +14,7 @@ class ParsedQuestion:
     stock_code: str
     intent: str
 
+    # 질문 분석 결과를 딕셔너리로 변환
     def to_dict(self) -> dict[str, str | None]:
         return asdict(self)
     
@@ -34,16 +36,20 @@ def parse_stock_question(question: str) -> ParsedQuestion:
     )
 
 
-# sample_stocks.json에 있는 종목명/종목코드 기준으로 질문에서 종목 찾기
+# 기준정보에서 종목을 찾고 파일 누락 또는 매칭 실패 시 한 번만 갱신
 def _extract_stock_info(question: str) -> dict[str, str]:
-    stock_infos = _load_sample_stock_infos()
+    refreshed = False
+    try:
+        stock_infos = load_stock_references()
+    except FileNotFoundError:
+        stock_infos = refresh_stock_references()
+        refreshed = True
 
-    for stock_info in stock_infos:
-        if (
-            stock_info["stock_name"] in question
-            or stock_info["stock_code"] in question
-        ):
-            return stock_info
+    stock_info = _find_stock_info(question, stock_infos)
+    if stock_info is None and not refreshed:
+        stock_info = _find_stock_info(question, refresh_stock_references())
+    if stock_info is not None:
+        return stock_info
 
     raise ValueError(f"Stock name or stock code not found in question: {question}")
 
@@ -59,19 +65,17 @@ def _classify_intent(question: str) -> str:
     return "general_analysis"
 
 
-# 긴 종목명을 먼저 검사해서 부분 매칭 충돌 가능성 줄임 (reverse=True, 내림차순)
-def _load_sample_stock_infos() -> list[dict[str, str]]:
-    stocks = load_sample_stocks()
-    stock_infos = {
-        (stock["stock_name"], stock["stock_code"])
-        for stock in stocks
-    }
-
-    return [
-        {"stock_name": stock_name, "stock_code": stock_code}
-        for stock_name, stock_code in sorted(
-            stock_infos,
-            key=lambda stock_info: len(stock_info[0]), # 이름 없는 임시 함수 사용, 종목명 길이로 정렬
-            reverse=True,
-        )
-    ]
+# 종목코드를 우선 확인하고 긴 종목명부터 검사하여 부분 매칭 충돌 방지
+def _find_stock_info(
+    question: str, stock_infos: list[dict[str, str]],
+) -> dict[str, str] | None:
+    codes = set(re.findall(r"(?<![A-Za-z0-9])[A-Za-z0-9]{6}(?![A-Za-z0-9])", question))
+    for stock_info in stock_infos:
+        if stock_info["stock_code"] in codes:
+            return stock_info
+    for stock_info in sorted(
+        stock_infos, key=lambda stock: len(stock["stock_name"]), reverse=True,
+    ):
+        if stock_info["stock_name"] in question:
+            return stock_info
+    return None

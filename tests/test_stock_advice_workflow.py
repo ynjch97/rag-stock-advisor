@@ -1,7 +1,11 @@
 from src.app.stock_advice_workflow import run_stock_advice_workflow
 
 
-def test_run_stock_advice_workflow_generates_answer():
+def test_run_stock_advice_workflow_generates_answer(monkeypatch):
+    monkeypatch.setattr(
+        "src.parsers.stock_question_parser.load_stock_references",
+        lambda: [{"stock_name": "삼성전자", "stock_code": "005930", "market": "KOSPI"}],
+    )
     answer = run_stock_advice_workflow("삼성전자 사도 될까?")
 
     assert "[삼성전자 간단 분석]" in answer
