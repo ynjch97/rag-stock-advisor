@@ -285,7 +285,7 @@ stock_question_parser.py
 - 사용자 쿼리에서 추출한 종목명과 종목코드를 매핑하기 위함
   - 미리 수집된 데이터에서 매핑되는 코드 확보
   - 파일이 없거나, 종목명이 존재하지 않으면 데이터 갱신 -> `/data/reference/stock_name_code.json`
-- 마켓별 전체 종목 조회
+- 마켓별 전체 종목 조회 (초당 최대 1회 사용 가능)
 ``` bash
 curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSPI" `
   -H "Authorization: Bearer $($response.access_token)"

@@ -1,5 +1,8 @@
 import json
+import math
+import random
 import tempfile
+import time
 from pathlib import Path
 
 import httpx
@@ -13,6 +16,10 @@ from src.data_loaders.sample_stock_loader import load_sample_stocks
 STOCK_MARKETS = ("KOSPI", "KOSDAQ")
 # 종목 목록 API의 네트워크 작업별 제한 시간(초)
 REFERENCE_REQUEST_TIMEOUT_SECONDS = 30.0
+# 전체 종목 조회의 초당 1회 제한을 위한 시장 간 대기 시간
+REFERENCE_REQUEST_INTERVAL_SECONDS = 1.1
+# 최초 요청 외에 허용하는 429 재시도 횟수
+REFERENCE_MAX_RETRIES = 3
 
 
 # provider별 종목 목록 수집; 샘플의 시장은 SAMPLE로 표시
@@ -55,14 +62,10 @@ def _collect_toss_references(
 ) -> list[dict[str, str]]:
     records: list[dict[str, str]] = []
     codes: set[str] = set()
-    for market in STOCK_MARKETS:
-        response = client.get(
-            f"{base_url.rstrip('/')}/api/v1/stocks/all",
-            params={"market": market},
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=REFERENCE_REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
+    for index, market in enumerate(STOCK_MARKETS):
+        if index:
+            time.sleep(REFERENCE_REQUEST_INTERVAL_SECONDS)
+        response = _request_stock_list(client, base_url, token, market)
         payload = response.json()
         stocks = payload.get("result") if isinstance(payload, dict) else None
         if not isinstance(stocks, list) or not stocks:
@@ -78,6 +81,39 @@ def _collect_toss_references(
             codes.add(code)
             records.append({"stock_name": name, "stock_code": code, "market": market})
     return sorted(records, key=lambda record: record["stock_code"])
+
+
+# 429 응답에 한해 서버 권장 시간 또는 지수 백오프 후 최대 3회 재시도
+def _request_stock_list(
+    client: httpx.Client, base_url: str, token: str, market: str,
+) -> httpx.Response:
+    for attempt in range(REFERENCE_MAX_RETRIES + 1):
+        response = client.get(
+            f"{base_url.rstrip('/')}/api/v1/stocks/all",
+            params={"market": market},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=REFERENCE_REQUEST_TIMEOUT_SECONDS,
+        )
+        if response.status_code != 429 or attempt == REFERENCE_MAX_RETRIES:
+            response.raise_for_status()
+            return response
+        delay = _get_retry_delay(response, attempt)
+        # 긴 서버 권장 대기 시간은 호출자에게 오류로 전달하고 즉시 재요청하지 않음
+        if delay > 60:
+            response.raise_for_status()
+        time.sleep(delay)
+    raise RuntimeError("Stock list retry limit exceeded.")
+
+
+# Retry-After의 초 값을 우선 사용하고 잘못된 값은 지수 백오프로 대체
+def _get_retry_delay(response: httpx.Response, attempt: int) -> float:
+    try:
+        delay = float(response.headers.get("Retry-After", ""))
+    except ValueError:
+        delay = float(2 ** attempt)
+    if not math.isfinite(delay) or delay < 0:
+        delay = float(2 ** attempt)
+    return max(REFERENCE_REQUEST_INTERVAL_SECONDS, delay) + random.uniform(0.1, 0.3)
 
 
 # 전체 수집 성공 후 임시 파일을 교체하여 최초 저장 또는 기존 파일 갱신
