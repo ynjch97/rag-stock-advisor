@@ -66,12 +66,14 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
   {
     "stock_name": "삼성전자",
     "stock_code": "005930",
-    "date": "2026-07-16",     # 거래일
+    "base_date": "2026-07-16", # 거래일
     "open": 79300,            # 시가
     "high": 79600,            # 고가
     "low": 78000,             # 저가
     "close": 78200,           # 종가
-    "volume": 16800000        # 거래량
+    "volume": 16800000,       # 거래량
+    "change_rate": 4.1,       # 등락률(%) -> (당일종가 - 전일종가) / 전일종가 * 100
+    "change_price": 9000      # 등락금액
   }
 ]
 ```
@@ -114,7 +116,7 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
   "stock_name": "삼성전자",
   "stock_code": "005930",
   "current_price": 78500,
-  "change_rate": -1.2,
+  "change_rate": -1.2,            # 등락률(%) -> (현재가 - 전일종가) / 전일종가 * 100
   "base_date": "2026-07-07"
 }
 ```
@@ -296,7 +298,9 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 #### 3-2-4. 주가 데이터 조회 기준
 - `/api/v1/market-calendar/KR` API 조회 기준으로 함
   - 정규장 종료의 기준은 `today.integrated.regularMarket.endTime`을 기준으로 함
-- 캔들(OHLCV) 차트 조회 활용​ (`GET /api/v1/candles`) + 장중에는 현재가 조회도 가능 (`GET /api/v1/prices`)
+- 캔들(OHLCV) 차트 조회 활용​ (`GET /api/v1/candles`)
+  - 종목 번호, 조회일 데이터를 변수로 활용
+  - 장중에는 현재가 조회도 가능 (`GET /api/v1/prices`)
 - `today.integrated == null` 이면 휴장일이므로, `previousBusinessDay.date`의 마감 데이터
 - `today.integrated != null`
   - 현재 시각 < 정규장 시작 :	`previousBusinessDay.date`의 마감 데이터

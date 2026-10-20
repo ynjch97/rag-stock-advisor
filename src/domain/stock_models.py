@@ -16,12 +16,14 @@ class MarketStatus:
 class DailyStock:
     stock_name: str
     stock_code: str
-    date: str
+    base_date: str
     open: int
     high: int
     low: int
     close: int
     volume: int
+    change_rate: float  # 등락률(%)
+    change_price: int   # 등락금액
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,7 @@ class RealtimeStock:
     stock_name: str
     stock_code: str
     current_price: int
-    change_rate: float
+    change_rate: float  # 등락률(%)
     base_date: str
 
 
