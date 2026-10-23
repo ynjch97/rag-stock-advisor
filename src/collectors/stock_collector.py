@@ -15,17 +15,17 @@ from src.collectors.stock_token_manager import StockTokenManager, stock_token_ma
 from src.config.paths import get_raw_price_path
 from src.config.settings import Settings, settings
 from src.data_loaders.sample_stock_loader import load_latest_sample_stock
-from src.domain.stock_models import DailyStock, MarketStatus, RealtimeStock
+from src.domain.stock_models import DEFAULT_RECENT_DAYS, DailyStock, MarketStatus, RealtimeStock
+from src.preprocessing.stock_preprocessor import preprocess_and_save_stock_trend
 
 
 # 한국 시장의 날짜와 시각 비교 기준 (UTC+09:00)
 KST = timezone(timedelta(hours=9))
 MARKET_CALENDAR_TIMEOUT_SECONDS = 10.0
 STOCK_REQUEST_TIMEOUT_SECONDS = 10.0
-RECENT_DAILY_STOCK_COUNT = 5
 
 
-# 완료된 최근 5거래일을 수집·병합·저장하고 (최근 일봉 목록, 변경 여부) 반환
+# 완료된 최근 n거래일을 수집·병합·저장하고 (최근 일봉 목록, 변경 여부) 반환
 def collect_and_save_daily_stocks(
     stock_name: str,
     stock_code: str,
@@ -36,7 +36,10 @@ def collect_and_save_daily_stocks(
     file_path: Path | None = None,
     *,
     market_status: MarketStatus | None = None,
+    recent_days: int = DEFAULT_RECENT_DAYS,
 ) -> tuple[list[DailyStock], bool]:
+    if type(recent_days) is not int or not 1 <= recent_days <= 199:
+        raise ValueError("recent_days must be between 1 and 199 trading days.")
     if not stock_name.strip() or re.fullmatch(r"[A-Za-z0-9]{6}", stock_code) is None:
         raise ValueError("A stock name and a six-character domestic stock code are required.")
     provider = (app_settings.stock_api_provider or "").lower()
@@ -68,7 +71,7 @@ def collect_and_save_daily_stocks(
             raise ValueError("Toss API requires an access token.")
         candles = _request_daily_candles(
             client, app_settings.stock_api_url.rstrip("/"), token,
-            stock_code, market.latest_completed_date, RECENT_DAILY_STOCK_COUNT + 1,
+            stock_code, market.latest_completed_date, recent_days + 1,
         )
         dates = [_parse_session_time(candle.get("timestamp")).date() for candle in candles]
         if dates[0].isoformat() != market.latest_completed_date or any(
@@ -139,7 +142,7 @@ def _save_daily_stocks(file_path: Path, stocks: list[DailyStock]) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
-# 완료된 5거래일 일봉 저장 + 장중에는 현재가, 장 외에는 기준일 일봉 반환
+# 완료 일봉·추세를 저장하고 장중에는 현재가, 장 외에는 기준일 일봉 반환
 def collect_stock_price(
     stock_name: str,
     stock_code: str,
@@ -148,7 +151,12 @@ def collect_stock_price(
     token_manager: StockTokenManager | None = None,
     http_client: httpx.Client | None = None,
     file_path: Path | None = None,
+    *,
+    recent_days: int = DEFAULT_RECENT_DAYS,
+    trend_file_path: Path | None = None,
 ) -> DailyStock | RealtimeStock:
+    if type(recent_days) is not int or not 1 <= recent_days <= 199:
+        raise ValueError("recent_days must be between 1 and 199 trading days.")
     if not stock_name.strip() or not stock_code.strip():
         raise ValueError("Stock name and stock code must not be empty.")
     provider = (app_settings.stock_api_provider or "").lower()
@@ -178,11 +186,14 @@ def collect_stock_price(
         market = get_market_status(now, app_settings, token_manager, client)
         if market is None:
             raise ValueError("Toss market status is required.")
-        # 장 후에는 당일, 장 전/장중/휴장일에는 직전 거래일부터 완료 일봉 5개 수집·저장
-        stocks, _ = collect_and_save_daily_stocks(
+        # 장 후에는 당일, 장 전/장중/휴장일에는 직전 거래일부터 완료 일봉 n개 수집·저장
+        stocks, data_changed = collect_and_save_daily_stocks(
             stock_name, stock_code, now=now, app_settings=app_settings,
             token_manager=token_manager, http_client=client, file_path=file_path,
-            market_status=market,
+            market_status=market, recent_days=recent_days,
+        )
+        preprocess_and_save_stock_trend(
+            stocks, recent_days, trend_file_path, data_changed=data_changed,
         )
         # 장중이 아닌 경우 (장 전후, 휴장일): 기준일의 마감 일봉 반환
         if not market.is_realtime:

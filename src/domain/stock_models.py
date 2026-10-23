@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+DEFAULT_RECENT_DAYS = 5
 
 @dataclass(frozen=True)
 class MarketStatus:
@@ -41,7 +42,7 @@ class StockTrend:
     stock_code: str
     base_date: str
     recent_days: int
-    recent_return_rate: float
+    recent_change_rate: float
     up_days: int
     down_days: int
     trend: str

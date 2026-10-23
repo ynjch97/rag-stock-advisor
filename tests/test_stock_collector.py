@@ -13,6 +13,7 @@ from src.collectors.stock_collector import (
 )
 from src.config.settings import settings
 from src.domain.stock_models import DailyStock, RealtimeStock
+from src.preprocessing.stock_preprocessor import calculate_stock_trend
 
 
 # 일봉 저장 경로를 테스트 임시 폴더로 제한하여 실제 수집 파일 보호
@@ -20,6 +21,10 @@ from src.domain.stock_models import DailyStock, RealtimeStock
 def daily_storage_path(tmp_path, monkeypatch):
     path = tmp_path / "005930_daily.json"
     monkeypatch.setattr("src.collectors.stock_collector.get_raw_price_path", lambda code: path)
+    monkeypatch.setattr(
+        "src.preprocessing.stock_preprocessor.get_processed_price_trend_path",
+        lambda code: tmp_path / "005930_trend.json",
+    )
     return path
 
 
@@ -160,14 +165,14 @@ def price_api(calendar):
         if request.url.path.endswith("/candles"):
             assert request.url.params["symbol"] == "005930"
             assert request.url.params["interval"] == "1d"
-            assert request.url.params["count"] in ("1", "6")
+            assert 2 <= int(request.url.params["count"]) <= 200
             assert request.url.params["adjusted"] == "false"
             target = request.url.params["before"][:10]
             data = {"timestamp": f"{target}T00:00:00+09:00", **candle}
             candles = [data]
-            if request.url.params["count"] == "6":
+            if int(request.url.params["count"]) > 1:
                 previous_date = datetime.fromisoformat(target).date()
-                for index in range(5):
+                for index in range(int(request.url.params["count"]) - 1):
                     previous_date -= timedelta(days=1)
                     while previous_date.weekday() >= 5:
                         previous_date -= timedelta(days=1)
@@ -256,6 +261,29 @@ def test_collect_daily_stock(price_api, calendar, clock, holiday, target, daily_
     assert len(saved) == 5
     assert saved[-1] == asdict(result)
     assert sum(request.url.path.endswith("/market-calendar/KR") for request in requests) == 1
+    trends = json.loads((daily_storage_path.parent / "005930_trend.json").read_text(encoding="utf-8"))
+    assert trends[-1]["base_date"] == target
+    assert trends[-1]["recent_days"] == 5
+
+
+# 질문에서 넘어온 기간만큼 일봉 수집 및 추세 저장; 장중에도 기준일은 전일
+@pytest.mark.parametrize("recent_days", [3, 7])
+def test_custom_recent_days_collection(price_api, recent_days, daily_storage_path):
+    config, manager, client, requests, _, _ = price_api
+    result = collect_stock_price(
+        "삼성전자", "005930", datetime.fromisoformat("2026-10-20T12:00:00+09:00"),
+        config, manager, client, recent_days=recent_days,
+    )
+    assert isinstance(result, RealtimeStock)
+    assert requests[1].url.params["count"] == str(recent_days + 1)
+    saved = json.loads(daily_storage_path.read_text(encoding="utf-8"))
+    assert len(saved) == recent_days
+    assert saved[-1]["base_date"] == "2026-10-19"
+    trend_path = daily_storage_path.parent / "005930_trend.json"
+    records = json.loads(trend_path.read_text(encoding="utf-8"))
+    assert records[-1]["recent_days"] == recent_days
+    assert records[-1]["base_date"] == "2026-10-19"
+    assert "recent_change_rate" in records[-1]
 
 
 # 전일 종가 대비 상승·하락·보합 및 소수점 반올림 검증
@@ -359,6 +387,61 @@ def daily_collection_api(calendar):
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         yield config, manager, client, candles, requests
+
+
+# 최초 조회 시 미저장된 6번째 종가가 첫날 상승·하락 집계에 반영되는지 검증
+@pytest.mark.parametrize("previous_close,first_change,up,down", [
+    (90, 10, 1, 0), (110, -10, 0, 1), (100, 0, 0, 0),
+])
+def test_first_collection_counts_first_day_against_unsaved_previous_close(
+    tmp_path, daily_collection_api, previous_close, first_change, up, down,
+):
+    config, manager, client, candles, requests = daily_collection_api
+    raw_path = tmp_path / "new_stock" / "005930_daily.json"
+    trend_path = tmp_path / "new_stock" / "005930_trend.json"
+    assert not raw_path.exists()
+    assert not trend_path.exists()
+    for candle in candles:
+        candle["closePrice"] = "100"
+    candles[-1]["closePrice"] = str(previous_close)
+    previous_date = candles[-1]["timestamp"][:10]
+
+    collect_stock_price(
+        "삼성전자", "005930", datetime.fromisoformat("2026-10-20T16:00:00+09:00"),
+        config, manager, client, raw_path, trend_file_path=trend_path,
+    )
+    assert requests[1].url.params["count"] == "6"
+    records = json.loads(raw_path.read_text(encoding="utf-8"))
+    assert len(records) == 5
+    assert previous_date not in {record["base_date"] for record in records}
+    assert records[0]["base_date"] == "2026-10-14"
+    assert records[0]["change_price"] == first_change
+
+    # 저장된 5개 일봉만 다시 읽어도 첫날 집계 결과를 재현할 수 있음
+    reconstructed = calculate_stock_trend([DailyStock(**record) for record in records])
+    assert reconstructed.up_days == up
+    assert reconstructed.down_days == down
+    assert reconstructed.recent_change_rate == 0.0
+    saved_trends = json.loads(trend_path.read_text(encoding="utf-8"))
+    assert saved_trends == [asdict(reconstructed)]
+
+
+# 최초 조회에서 전일 종가용 6번째 봉이 부족하면 일봉·추세 파일 생성 방지
+@pytest.mark.parametrize("candle_count", [0, 5])
+def test_first_collection_without_previous_close_does_not_save(
+    tmp_path, daily_collection_api, candle_count,
+):
+    config, manager, client, candles, _ = daily_collection_api
+    del candles[candle_count:]
+    raw_path = tmp_path / "005930_daily.json"
+    trend_path = tmp_path / "005930_trend.json"
+    with pytest.raises(ValueError, match="Expected 6 daily stock"):
+        collect_stock_price(
+            "삼성전자", "005930", datetime.fromisoformat("2026-10-20T16:00:00+09:00"),
+            config, manager, client, raw_path, trend_file_path=trend_path,
+        )
+    assert not raw_path.exists()
+    assert not trend_path.exists()
 
 
 # 초기 수집·누락 보충·정정·기존 과거 기록 유지 및 불변 시 재저장 방지 검증

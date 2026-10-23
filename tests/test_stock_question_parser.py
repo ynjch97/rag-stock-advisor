@@ -103,3 +103,21 @@ def test_longer_stock_name_matches_first(references):
         {"stock_name": "삼성전자우", "stock_code": "005935", "market": "KOSPI"},
     ]
     assert parse_stock_question("삼성전자우 전망").stock_code == "005935"
+
+
+# 질문에 지정된 거래일 수와 기본값 검증
+@pytest.mark.parametrize("question,expected", [
+    ("삼성전자 전망", 5), ("삼성전자 최근 10거래일 전망", 10),
+    ("삼성전자 최근 3일 흐름", 3), ("005930 최근 1 거래일", 1),
+])
+def test_parse_recent_days(question, expected):
+    parsed = parse_stock_question(question)
+    assert parsed.recent_days == expected
+    assert parsed.to_dict()["recent_days"] == expected
+
+
+# 전일 종가용 1봉을 포함한 단일 호출 한도를 넘는 기간은 오류
+@pytest.mark.parametrize("days", [0, 200])
+def test_invalid_recent_days(days):
+    with pytest.raises(ValueError, match="recent_days"):
+        parse_stock_question(f"삼성전자 최근 {days}거래일")
