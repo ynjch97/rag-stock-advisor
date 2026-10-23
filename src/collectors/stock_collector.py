@@ -139,7 +139,7 @@ def _save_daily_stocks(file_path: Path, stocks: list[DailyStock]) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
-# 장중에는 현재가 조회, 장 외에는 완료 일봉 5개를 저장하고 기준일 일봉 반환
+# 완료된 5거래일 일봉 저장 + 장중에는 현재가, 장 외에는 기준일 일봉 반환
 def collect_stock_price(
     stock_name: str,
     stock_code: str,
@@ -178,24 +178,22 @@ def collect_stock_price(
         market = get_market_status(now, app_settings, token_manager, client)
         if market is None:
             raise ValueError("Toss market status is required.")
-        # 장중이 아닌 경우 (장 전후, 휴장일): 하위 함수에서 일봉 수집·저장
+        # 장 후에는 당일, 장 전/장중/휴장일에는 직전 거래일부터 완료 일봉 5개 수집·저장
+        stocks, _ = collect_and_save_daily_stocks(
+            stock_name, stock_code, now=now, app_settings=app_settings,
+            token_manager=token_manager, http_client=client, file_path=file_path,
+            market_status=market,
+        )
+        # 장중이 아닌 경우 (장 전후, 휴장일): 기준일의 마감 일봉 반환
         if not market.is_realtime:
-            stocks, _ = collect_and_save_daily_stocks(
-                stock_name, stock_code, now=now, app_settings=app_settings,
-                token_manager=token_manager, http_client=client, file_path=file_path,
-                market_status=market,
-            )
             return stocks[-1]
 
         token = token_manager.get_access_token()
         if not token:
             raise ValueError("Toss API requires an access token.")
         base_url = app_settings.stock_api_url.rstrip("/")
-        # 장중인 경우 (직전 거래일 종가 확보 후 현재가 조회)
-        previous_candles = _request_daily_candles(
-            client, base_url, token, stock_code, market.latest_completed_date, count=1,
-        )
-        previous_close = _get_candle_close(previous_candles[0], market.latest_completed_date)
+        # 장중인 경우: 확보한 직전 거래일 종가를 재사용하고 현재가만 추가 조회
+        previous_close = stocks[-1].close
         response = client.get(
             f"{base_url}/api/v1/prices", params={"symbols": stock_code},
             headers={"Authorization": f"Bearer {token}"}, timeout=STOCK_REQUEST_TIMEOUT_SECONDS,

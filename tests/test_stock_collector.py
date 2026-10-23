@@ -200,7 +200,37 @@ def test_collect_realtime_stock(price_api, previous_close, expected_rate, daily_
     assert result == RealtimeStock("삼성전자", "005930", 105, expected_rate, "2026-10-20")
     assert requests[1].url.params["before"] == "2026-10-19T23:59:59+09:00"
     assert not client.is_closed
-    assert not daily_storage_path.exists()
+    saved = json.loads(daily_storage_path.read_text(encoding="utf-8"))
+    assert [record["base_date"] for record in saved] == [
+        "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19",
+    ]
+    assert saved[-1]["close"] == previous_close
+    assert requests[1].url.params["count"] == "6"
+    assert [request.url.path for request in requests] == [
+        "/api/v1/market-calendar/KR", "/api/v1/candles", "/api/v1/prices",
+    ]
+
+
+# 월요일 장중에는 캘린더의 직전 거래일(금요일)부터 완료 일봉 5개 저장
+def test_realtime_stores_five_completed_days_after_weekend(price_api, calendar, daily_storage_path):
+    config, manager, client, requests, _, quote = price_api
+    calendar["today"]["date"] = "2026-10-19"
+    calendar["previousBusinessDay"]["date"] = "2026-10-16"
+    session = calendar["today"]["integrated"]["regularMarket"]
+    session["startTime"] = "2026-10-19T09:00:00+09:00"
+    session["endTime"] = "2026-10-19T15:30:00+09:00"
+    quote["timestamp"] = "2026-10-19T12:00:00+09:00"
+    result = collect_stock_price(
+        "삼성전자", "005930", datetime.fromisoformat("2026-10-19T12:00:00+09:00"),
+        config, manager, client,
+    )
+    assert isinstance(result, RealtimeStock)
+    assert result.base_date == "2026-10-19"
+    assert requests[1].url.params["before"] == "2026-10-16T23:59:59+09:00"
+    saved = json.loads(daily_storage_path.read_text(encoding="utf-8"))
+    assert len(saved) == 5
+    assert saved[-1]["base_date"] == "2026-10-16"
+    assert all(record["base_date"] < result.base_date for record in saved)
 
 
 # 장 전·장 후·휴장일의 기준일 일봉 선택 및 현재가 호출 생략 검증
