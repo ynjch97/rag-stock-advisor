@@ -1,13 +1,26 @@
 from dataclasses import replace
+from dataclasses import asdict
 from datetime import datetime, timedelta
+import json
 from unittest.mock import Mock
 
 import httpx
 import pytest
 
-from src.collectors.stock_collector import collect_stock_price, determine_market_status, get_market_status
+from src.collectors.stock_collector import (
+    collect_and_save_daily_stocks, collect_stock_price,
+    determine_market_status, get_market_status,
+)
 from src.config.settings import settings
 from src.domain.stock_models import DailyStock, RealtimeStock
+
+
+# 일봉 저장 경로를 테스트 임시 폴더로 제한하여 실제 수집 파일 보호
+@pytest.fixture(autouse=True)
+def daily_storage_path(tmp_path, monkeypatch):
+    path = tmp_path / "005930_daily.json"
+    monkeypatch.setattr("src.collectors.stock_collector.get_raw_price_path", lambda code: path)
+    return path
 
 
 # 정상 거래일의 모의 시장 캘린더 생성
@@ -147,19 +160,25 @@ def price_api(calendar):
         if request.url.path.endswith("/candles"):
             assert request.url.params["symbol"] == "005930"
             assert request.url.params["interval"] == "1d"
-            assert request.url.params["count"] in ("1", "2")
+            assert request.url.params["count"] in ("1", "6")
             assert request.url.params["adjusted"] == "false"
             target = request.url.params["before"][:10]
             data = {"timestamp": f"{target}T00:00:00+09:00", **candle}
             candles = [data]
-            if request.url.params["count"] == "2":
-                previous_date = (datetime.fromisoformat(target) - timedelta(days=1)).date()
-                if previous_date.weekday() == 6:
-                    previous_date -= timedelta(days=2)
-                candles.append({
-                    "timestamp": candle.get("previousTimestamp", f"{previous_date}T00:00:00+09:00"),
-                    "closePrice": candle.get("previousClose", "100"), "currency": "KRW",
-                })
+            if request.url.params["count"] == "6":
+                previous_date = datetime.fromisoformat(target).date()
+                for index in range(5):
+                    previous_date -= timedelta(days=1)
+                    while previous_date.weekday() >= 5:
+                        previous_date -= timedelta(days=1)
+                    candles.append({
+                        **candle,
+                        "timestamp": (
+                            candle.get("previousTimestamp", f"{previous_date}T00:00:00+09:00")
+                            if index == 0 else f"{previous_date}T00:00:00+09:00"
+                        ),
+                        "closePrice": candle.get("previousClose", "100"),
+                    })
             return httpx.Response(200, json={"result": {"candles": candles}})
         assert request.url.path.endswith("/prices")
         assert request.url.params["symbols"] == "005930"
@@ -171,7 +190,7 @@ def price_api(calendar):
 
 # 장중에는 직전 거래일 종가 대비 현재가 등락률 계산
 @pytest.mark.parametrize("previous_close,expected_rate", [(100, 5.0), (110, -4.55), (105, 0.0)])
-def test_collect_realtime_stock(price_api, previous_close, expected_rate):
+def test_collect_realtime_stock(price_api, previous_close, expected_rate, daily_storage_path):
     config, manager, client, requests, candle, _ = price_api
     candle["closePrice"] = str(previous_close)
     result = collect_stock_price(
@@ -181,6 +200,7 @@ def test_collect_realtime_stock(price_api, previous_close, expected_rate):
     assert result == RealtimeStock("삼성전자", "005930", 105, expected_rate, "2026-10-20")
     assert requests[1].url.params["before"] == "2026-10-19T23:59:59+09:00"
     assert not client.is_closed
+    assert not daily_storage_path.exists()
 
 
 # 장 전·장 후·휴장일의 기준일 일봉 선택 및 현재가 호출 생략 검증
@@ -189,7 +209,7 @@ def test_collect_realtime_stock(price_api, previous_close, expected_rate):
     ("15:30:00", False, "2026-10-20"),
     ("12:00:00", True, "2026-10-19"),
 ])
-def test_collect_daily_stock(price_api, calendar, clock, holiday, target):
+def test_collect_daily_stock(price_api, calendar, clock, holiday, target, daily_storage_path):
     config, manager, client, requests, _, _ = price_api
     if holiday:
         calendar["today"]["integrated"] = None
@@ -201,6 +221,11 @@ def test_collect_daily_stock(price_api, calendar, clock, holiday, target):
     assert result.base_date == target
     assert len(requests) == 2
     assert requests[1].url.params["before"] == f"{target}T23:59:59+09:00"
+    assert requests[1].url.params["count"] == "6"
+    saved = json.loads(daily_storage_path.read_text(encoding="utf-8"))
+    assert len(saved) == 5
+    assert saved[-1] == asdict(result)
+    assert sum(request.url.path.endswith("/market-calendar/KR") for request in requests) == 1
 
 
 # 전일 종가 대비 상승·하락·보합 및 소수점 반올림 검증
@@ -274,3 +299,139 @@ def test_collect_sample_stock():
         collect_stock_price("삼성전자", "000660", app_settings=config)
     with pytest.raises(ValueError, match="Unsupported"):
         collect_stock_price("삼성전자", "005930", app_settings=replace(config, stock_api_provider="other"))
+
+
+# 주말을 건너뛴 완료 일봉 6개와 저장용 모의 API 제공
+@pytest.fixture
+def daily_collection_api(calendar):
+    dates = ["2026-10-20", "2026-10-19", "2026-10-16", "2026-10-15", "2026-10-14", "2026-10-13"]
+    candles = [
+        {"timestamp": f"{day}T00:00:00+09:00", "openPrice": "100",
+         "highPrice": "120", "lowPrice": "80", "closePrice": str(110 - index),
+         "volume": "1000", "currency": "KRW"}
+        for index, day in enumerate(dates)
+    ]
+    requests = []
+    config = replace(settings, stock_api_provider="toss", stock_api_url="https://example.test")
+    manager = Mock()
+    manager.get_access_token.return_value = "test-token"
+
+    # 기준일 이전 캔들만 반환하여 장중 데이터의 저장 제외 검증
+    def respond(request):
+        requests.append(request)
+        if request.url.path.endswith("/market-calendar/KR"):
+            return httpx.Response(200, json={"result": calendar})
+        assert request.url.path.endswith("/candles")
+        assert request.url.params["count"] == "6"
+        before = request.url.params["before"][:10]
+        selected = [candle for candle in candles if candle["timestamp"][:10] <= before]
+        return httpx.Response(200, json={"result": {"candles": selected[:6]}})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        yield config, manager, client, candles, requests
+
+
+# 초기 수집·누락 보충·정정·기존 과거 기록 유지 및 불변 시 재저장 방지 검증
+def test_collect_save_and_merge_daily_stocks(tmp_path, daily_collection_api):
+    config, manager, client, candles, requests = daily_collection_api
+    path = tmp_path / "prices" / "005930_daily.json"
+    arguments = dict(
+        stock_name="삼성전자", stock_code="005930",
+        now=datetime.fromisoformat("2026-10-20T16:00:00+09:00"),
+        app_settings=config, token_manager=manager, http_client=client, file_path=path,
+    )
+    recent, changed = collect_and_save_daily_stocks(**arguments)
+    assert changed is True
+    assert len(recent) == 5
+    assert [stock.base_date for stock in recent] == [
+        "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20",
+    ]
+    assert json.loads(path.read_text(encoding="utf-8")) == [asdict(stock) for stock in recent]
+    assert len(requests) == 2
+    assert recent[0].change_price == 1
+
+    before = path.stat().st_mtime_ns
+    assert collect_and_save_daily_stocks(**arguments)[1] is False
+    assert path.stat().st_mtime_ns == before
+
+    old_stock = asdict(replace(recent[0], base_date="2026-10-09"))
+    records = [asdict(stock) for stock in recent if stock.base_date != "2026-10-16"]
+    records.append(old_stock)
+    path.write_text(json.dumps(records[::-1]), encoding="utf-8")
+    candles[0]["closePrice"] = "115"
+    recent, changed = collect_and_save_daily_stocks(**arguments)
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert changed is True
+    assert len(saved) == 6
+    assert saved[0] == old_stock
+    assert saved[-1]["close"] == 115
+    assert saved[-1]["change_price"] == 6
+    assert len({record["base_date"] for record in saved}) == len(saved)
+    assert any(record["base_date"] == "2026-10-16" for record in saved)
+    assert collect_and_save_daily_stocks(**arguments)[1] is False
+
+
+# 장중·장 전·휴장일에는 오늘의 미완성 캔들을 제외하고 완료된 5봉 저장
+@pytest.mark.parametrize("clock,holiday", [("12:00:00", False), ("08:00:00", False), ("12:00:00", True)])
+def test_daily_storage_excludes_incomplete_day(tmp_path, daily_collection_api, calendar, clock, holiday):
+    config, manager, client, candles, _ = daily_collection_api
+    candles.append({**candles[-1], "timestamp": "2026-10-12T00:00:00+09:00"})
+    if holiday:
+        calendar["today"]["integrated"] = None
+    path = tmp_path / "005930_daily.json"
+    recent, changed = collect_and_save_daily_stocks(
+        "삼성전자", "005930", datetime.fromisoformat(f"2026-10-20T{clock}+09:00"),
+        config, manager, client, path,
+    )
+    assert changed is True
+    assert recent[-1].base_date == "2026-10-19"
+    assert len(recent) == 5
+    assert "2026-10-20" not in path.read_text(encoding="utf-8")
+
+
+# 부족한 봉·날짜 불일치·중복 봉·잘못된 가격이면 기존 파일 보존
+@pytest.mark.parametrize("failure", ["short", "stale", "duplicate", "price"])
+def test_daily_collection_failure_preserves_file(tmp_path, daily_collection_api, failure):
+    config, manager, client, candles, _ = daily_collection_api
+    path = tmp_path / "005930_daily.json"
+    arguments = dict(
+        stock_name="삼성전자", stock_code="005930",
+        now=datetime.fromisoformat("2026-10-20T16:00:00+09:00"),
+        app_settings=config, token_manager=manager, http_client=client, file_path=path,
+    )
+    collect_and_save_daily_stocks(**arguments)
+    original = path.read_bytes()
+    if failure == "short":
+        candles.pop()
+    elif failure == "stale":
+        candles[0]["timestamp"] = "2026-10-19T00:00:00+09:00"
+    elif failure == "duplicate":
+        candles[1]["timestamp"] = candles[0]["timestamp"]
+    else:
+        candles[2]["closePrice"] = "0"
+    with pytest.raises(ValueError):
+        collect_and_save_daily_stocks(**arguments)
+    assert path.read_bytes() == original
+
+
+# 잘못된 로컬 파일은 덮어쓰지 않고 원인을 노출하며 sample은 저장 생략
+def test_daily_storage_invalid_file_and_provider(tmp_path, daily_collection_api):
+    config, manager, client, _, requests = daily_collection_api
+    path = tmp_path / "005930_daily.json"
+    path.write_text('[{"stock_code": "005930"}]', encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid saved"):
+        collect_and_save_daily_stocks(
+            "삼성전자", "005930", app_settings=config, token_manager=manager,
+            http_client=client, file_path=path,
+        )
+    assert requests == []
+    sample_path = tmp_path / "sample.json"
+    assert collect_and_save_daily_stocks(
+        "삼성전자", "005930", app_settings=replace(config, stock_api_provider="sample"),
+        file_path=sample_path,
+    ) == ([], False)
+    assert not sample_path.exists()
+    with pytest.raises(ValueError, match="Unsupported"):
+        collect_and_save_daily_stocks(
+            "삼성전자", "005930", app_settings=replace(config, stock_api_provider="other"),
+        )

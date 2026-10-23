@@ -1,11 +1,18 @@
 from datetime import date, datetime, timedelta, timezone
 from contextlib import nullcontext
+from dataclasses import asdict
 from decimal import Decimal, InvalidOperation
+import json
+import math
+from pathlib import Path
+import re
+import tempfile
 from typing import Any
 
 import httpx
 
 from src.collectors.stock_token_manager import StockTokenManager, stock_token_manager
+from src.config.paths import get_raw_price_path
 from src.config.settings import Settings, settings
 from src.data_loaders.sample_stock_loader import load_latest_sample_stock
 from src.domain.stock_models import DailyStock, MarketStatus, RealtimeStock
@@ -15,9 +22,124 @@ from src.domain.stock_models import DailyStock, MarketStatus, RealtimeStock
 KST = timezone(timedelta(hours=9))
 MARKET_CALENDAR_TIMEOUT_SECONDS = 10.0
 STOCK_REQUEST_TIMEOUT_SECONDS = 10.0
+RECENT_DAILY_STOCK_COUNT = 5
 
 
-# 시장 상태에 따라 현재가 또는 기준일 일봉 조회
+# 완료된 최근 5거래일을 수집·병합·저장하고 (최근 일봉 목록, 변경 여부) 반환
+def collect_and_save_daily_stocks(
+    stock_name: str,
+    stock_code: str,
+    now: datetime | None = None,
+    app_settings: Settings = settings,
+    token_manager: StockTokenManager | None = None,
+    http_client: httpx.Client | None = None,
+    file_path: Path | None = None,
+    *,
+    market_status: MarketStatus | None = None,
+) -> tuple[list[DailyStock], bool]:
+    if not stock_name.strip() or re.fullmatch(r"[A-Za-z0-9]{6}", stock_code) is None:
+        raise ValueError("A stock name and a six-character domestic stock code are required.")
+    provider = (app_settings.stock_api_provider or "").lower()
+    if provider == "sample":
+        # 기존 샘플에는 OHLCV가 없으므로 raw 일봉을 생성하지 않음
+        return [], False
+    if provider != "toss":
+        raise ValueError(f"Unsupported STOCK_API_PROVIDER: {provider or '(not configured)'}")
+    if not app_settings.stock_api_url:
+        raise ValueError("Toss API requires STOCK_API_URL.")
+    destination = file_path if file_path is not None else get_raw_price_path(stock_code)
+    stored = _load_saved_daily_stocks(destination, stock_code)
+    if token_manager is None:
+        token_manager = (
+            stock_token_manager if app_settings is settings
+            else StockTokenManager(app_settings, http_client=http_client)
+        )
+    with (
+        nullcontext(http_client) if http_client is not None
+        else httpx.Client(timeout=STOCK_REQUEST_TIMEOUT_SECONDS)
+    ) as client:
+        market = market_status if market_status is not None else get_market_status(
+            now, app_settings, token_manager, client,
+        )
+        if market is None:
+            raise ValueError("Toss market status is required.")
+        token = token_manager.get_access_token()
+        if not token:
+            raise ValueError("Toss API requires an access token.")
+        candles = _request_daily_candles(
+            client, app_settings.stock_api_url.rstrip("/"), token,
+            stock_code, market.latest_completed_date, RECENT_DAILY_STOCK_COUNT + 1,
+        )
+        dates = [_parse_session_time(candle.get("timestamp")).date() for candle in candles]
+        if dates[0].isoformat() != market.latest_completed_date or any(
+            newer <= older for newer, older in zip(dates, dates[1:])
+        ):
+            raise ValueError("Daily candles must start on the completed date in descending order.")
+        recent = [
+            _build_daily_stock(stock_name, stock_code, day.isoformat(), candle, previous)
+            for day, candle, previous in zip(dates, candles, candles[1:])
+        ]
+
+    merged = {stock.base_date: stock for stock in stored}
+    merged.update({stock.base_date: stock for stock in recent})
+    all_stocks = [merged[day] for day in sorted(merged)]
+    changed = stored != all_stocks
+    if changed:
+        _save_daily_stocks(destination, all_stocks)
+    return sorted(recent, key=lambda stock: stock.base_date), changed
+
+
+# 기존 JSON 일봉을 읽고 필수 필드·종목코드·거래일·숫자 값 검증
+def _load_saved_daily_stocks(file_path: Path, stock_code: str) -> list[DailyStock]:
+    try:
+        with file_path.open("r", encoding="utf-8") as file:
+            records = json.load(file)
+    except FileNotFoundError:
+        return []
+    if not isinstance(records, list):
+        raise ValueError("Saved daily stocks must contain a JSON array.")
+    stocks = []
+    for record in records:
+        try:
+            stock = DailyStock(**record)
+            valid = (
+                stock.stock_code == stock_code and isinstance(stock.stock_name, str)
+                and bool(stock.stock_name.strip())
+                and date.fromisoformat(stock.base_date).isoformat() == stock.base_date
+                and all(type(value) is int and value > 0 for value in (
+                    stock.open, stock.high, stock.low, stock.close,
+                ))
+                and type(stock.volume) is int and stock.volume >= 0
+                and stock.low <= min(stock.open, stock.close) <= max(stock.open, stock.close) <= stock.high
+                and type(stock.change_price) is int
+                and type(stock.change_rate) in (float, int) and math.isfinite(stock.change_rate)
+            )
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            raise ValueError("Invalid saved daily stock record.")
+        stocks.append(stock)
+    return stocks
+
+
+# 임시 파일에 전체 데이터를 쓴 뒤 교체하여 저장 실패 시 기존 파일 보존
+def _save_daily_stocks(file_path: Path, stocks: list[DailyStock]) -> None:
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=file_path.parent, suffix=".tmp", delete=False,
+        ) as file:
+            temporary_path = Path(file.name)
+            json.dump([asdict(stock) for stock in stocks], file, ensure_ascii=False, indent=2)
+            file.write("\n")
+        temporary_path.replace(file_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+# 장중에는 현재가 조회, 장 외에는 완료 일봉 5개를 저장하고 기준일 일봉 반환
 def collect_stock_price(
     stock_name: str,
     stock_code: str,
@@ -25,6 +147,7 @@ def collect_stock_price(
     app_settings: Settings = settings,
     token_manager: StockTokenManager | None = None,
     http_client: httpx.Client | None = None,
+    file_path: Path | None = None,
 ) -> DailyStock | RealtimeStock:
     if not stock_name.strip() or not stock_code.strip():
         raise ValueError("Stock name and stock code must not be empty.")
@@ -55,14 +178,19 @@ def collect_stock_price(
         market = get_market_status(now, app_settings, token_manager, client)
         if market is None:
             raise ValueError("Toss market status is required.")
+        # 장중이 아닌 경우 (장 전후, 휴장일): 하위 함수에서 일봉 수집·저장
+        if not market.is_realtime:
+            stocks, _ = collect_and_save_daily_stocks(
+                stock_name, stock_code, now=now, app_settings=app_settings,
+                token_manager=token_manager, http_client=client, file_path=file_path,
+                market_status=market,
+            )
+            return stocks[-1]
+
         token = token_manager.get_access_token()
         if not token:
             raise ValueError("Toss API requires an access token.")
         base_url = app_settings.stock_api_url.rstrip("/")
-        # 장중이 아닌 경우 (장 전후, 휴장일)
-        if not market.is_realtime:
-            return _get_daily_stock(client, base_url, token, stock_name, stock_code, market.base_date)
-
         # 장중인 경우 (직전 거래일 종가 확보 후 현재가 조회)
         previous_candles = _request_daily_candles(
             client, base_url, token, stock_code, market.latest_completed_date, count=1,
@@ -91,13 +219,11 @@ def collect_stock_price(
         )
 
 
-# 기준일과 직전 거래일 일봉으로 OHLCV 및 전일 종가 대비 등락 정보 생성
-def _get_daily_stock(
-    client: httpx.Client, base_url: str, token: str,
+# 인접한 두 거래일 캔들을 검증하고 전일 종가 대비 등락 정보를 가진 일봉 생성
+def _build_daily_stock(
     stock_name: str, stock_code: str, base_date: str,
+    candle: dict[str, Any], previous: dict[str, Any],
 ) -> DailyStock:
-    candles = _request_daily_candles(client, base_url, token, stock_code, base_date, count=2)
-    candle, previous = candles
     close = _get_candle_close(candle, base_date)
     previous_date = _parse_session_time(previous.get("timestamp")).date()
     if previous_date >= date.fromisoformat(base_date):

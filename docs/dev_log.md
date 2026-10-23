@@ -74,6 +74,7 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   - `stock_reference_loader.py` -> 질문과 일치하는 종목코드/종목명 매핑
     - 장중에는 RealtimeStock 실시간 주가 조회 (저장 X)
     - DailyStock 데이터 존재하지 않으면 조회 -> `data/raw/prices/[종목코드]_daily.json`에 저장
+      - 등락률 계산법 : `(당일종가 - 전일종가) / 전일종가 * 100` *(증권사는 전일종가 대신 기준가를 사용하지만 토스증권에서는 가져올 수 없으므로, 해당 정보를 할용하여 분석하되 사용자 응답에는 노출하지 않음)*
     - StockTrend 데이터 존재하지 않으면 누락된 거래일 추가 조회 -> `data/processed/prices/[종목코드]_trend.json`에 저장
 - `[종목코드]_daily.json`
   - 같은 날짜는 교체하고, 날짜 순으로 정렬하여 저장

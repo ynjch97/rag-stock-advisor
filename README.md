@@ -51,7 +51,7 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 - 원본 데이터 `data/raw/` -> 전처리 `data/processed/` -> 청킹 `data/chunks/` -> 임베딩 및 FAISS 벡터 인덱스 `data/vector_store/faiss/`
 
 ### 2-2. 주가 데이터
-- 실시간 데이터(현재가·등락률) : API로 실시간 조회하고 별도 저장하지 않음
+- 실시간 데이터 : API로 실시간 조회하고 별도 저장하지 않음
 - 일별 OHLCV : API에서 수집하여 `data/raw/prices/`에 저장
   - 장 마감 후 하루에 한 번 정도 갱신하는 것으로 함
 - 추세 정보 : OHLCV를 계산하여 `data/processed/prices/`에 저장
@@ -86,7 +86,7 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
     "stock_code": "005930",
     "base_date": "2026-07-07",
     "recent_days": 5,             # 최근 몇 거래일 기준인지
-    "recent_return_rate": -1.875, # recent_days 동안의 수익률
+    "recent_change_rate": -1.875, # recent_days 동안의 수익률
     "up_days": 1,                 # 상승 거래일 수
     "down_days": 4,               # 하락 거래일 수
     "trend": "최근 5거래일 약세"    # 사람이 읽기 쉬운 가격 흐름 요약

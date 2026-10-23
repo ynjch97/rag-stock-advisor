@@ -35,7 +35,6 @@ def generate_stock_advice(context: StockContext) -> str:
 def _build_stock_overview(stock: dict[str, Any]) -> str:
     return (
         f"현재가는 {stock['current_price']:,}원이고, "
-        f"등락률은 {stock['change_rate']}%입니다. "
         f"최근 흐름은 {stock['trend']}입니다."
     )
 
