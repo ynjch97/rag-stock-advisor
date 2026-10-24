@@ -69,6 +69,23 @@ def preprocess_and_save_stock_trend(
     return trend, True
 
 
+# 저장된 추세 중 가격 기준일 이하의 최신 완료 거래일·동일 분석 기간 결과 반환
+def load_latest_stock_trend(
+    stock_code: str, recent_days: int = DEFAULT_RECENT_DAYS,
+    base_date: str | None = None, file_path: Path | None = None,
+) -> StockTrend:
+    destination = file_path if file_path is not None else get_processed_price_trend_path(stock_code)
+    cutoff = date.fromisoformat(base_date) if base_date is not None else None
+    records = [
+        record for record in _load_stock_trends(destination, stock_code)
+        if record.recent_days == recent_days
+        and (cutoff is None or date.fromisoformat(record.base_date) <= cutoff)
+    ]
+    if not records:
+        raise ValueError(f"Stock trend not found for {stock_code}, recent_days={recent_days}.")
+    return max(records, key=lambda record: record.base_date)
+
+
 # 저장된 추세 목록을 읽고 필수 필드·종목·기간·계산값 검증
 def _load_stock_trends(file_path: Path, stock_code: str) -> list[StockTrend]:
     try:

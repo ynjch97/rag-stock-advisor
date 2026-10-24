@@ -21,13 +21,15 @@ def load_sample_news(file_path: Path = SAMPLE_NEWS_PATH) -> list[NewsRecord]:
 
 
 # 종목명 기준으로 뉴스 데이터 필터링
-def load_sample_news_by_name(stock_name: str) -> list[NewsRecord]:
+def load_sample_news_by_name(
+    stock_name: str, *, allow_missing: bool = False,
+) -> list[NewsRecord]:
     news_items = load_sample_news()
     matched_news = [
         news for news in news_items if news.get("stock_name") == stock_name
     ]
 
-    if not matched_news:
+    if not matched_news and not allow_missing:
         raise ValueError(f"Sample news data not found: {stock_name}")
 
     return matched_news
@@ -37,8 +39,10 @@ def load_sample_news_by_name(stock_name: str) -> list[NewsRecord]:
 def load_recent_sample_news(
     stock_name: str,
     limit: int | None = None,
+    *,
+    allow_missing: bool = False,
 ) -> list[NewsRecord]:
-    matched_news = load_sample_news_by_name(stock_name)
+    matched_news = load_sample_news_by_name(stock_name, allow_missing=allow_missing)
     sorted_news = sorted(
         matched_news,
         key=lambda news: date.fromisoformat(news["published_date"]),

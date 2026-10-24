@@ -1,4 +1,6 @@
 from typing import Any
+from dataclasses import asdict
+from src.domain.stock_models import StockTrend
 from src.parsers.stock_question_parser import ParsedQuestion
 
 StockRecord = dict[str, Any]
@@ -13,20 +15,20 @@ def build_stock_context(
     parsed_question: ParsedQuestion,
     stock_data: StockRecord,
     news_data: list[NewsRecord],
+    trend_data: StockTrend | None = None,
 ) -> StockContext:
     return {
         "question": {
             "original_question": parsed_question.original_question,
             "intent": parsed_question.intent,
+            "recent_days": parsed_question.recent_days,
         },
         "stock": {
-            "stock_name": stock_data["stock_name"],
-            "stock_code": stock_data["stock_code"],
-            "current_price": stock_data["current_price"],
-            "change_rate": stock_data["change_rate"],
-            "trend": stock_data["trend"],
-            "base_date": stock_data["base_date"],
+            **stock_data,
+            "trend": trend_data.trend if trend_data is not None else stock_data["trend"],
         },
+        "stock_trend": asdict(trend_data) if trend_data is not None else None,
+        "data_sources": {"stock": stock_data.get("source", "sample"), "news": "sample"},
         "news": _build_news_context(news_data),
         "summary": _build_summary(news_data),
     }

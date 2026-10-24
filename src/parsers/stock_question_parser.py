@@ -21,14 +21,21 @@ class ParsedQuestion:
         return asdict(self)
     
 # 사용자 질문에서 종목명, 종목코드, 의도를 추출
-def parse_stock_question(question: str) -> ParsedQuestion:
+def parse_stock_question(
+    question: str, *, stock_infos: list[dict[str, str]] | None = None,
+) -> ParsedQuestion:
     normalized_question = question.strip()
 
     if not normalized_question:
         raise ValueError("Question must not be empty.")
 
     recent_days = _extract_recent_days(normalized_question)
-    stock_info = _extract_stock_info(normalized_question) # 종목명/종목코드 가져오기
+    stock_info = (
+        _extract_stock_info(normalized_question) if stock_infos is None
+        else _find_stock_info(normalized_question, stock_infos)
+    )
+    if stock_info is None:
+        raise ValueError(f"Stock name or stock code not found in question: {question}")
     intent = _classify_intent(normalized_question)        # 의도 추출하기
 
     return ParsedQuestion(

@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-10-23",
+    "recent_days": 5,
+    "recent_change_rate": -4.47,
+    "up_days": 2,
+    "down_days": 3,
+    "trend": "최근 5거래일 하락"
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-10-23",
+    "recent_days": 10,
+    "recent_change_rate": -14.94,
+    "up_days": 4,
+    "down_days": 6,
+    "trend": "최근 10거래일 하락"
+  }
+]

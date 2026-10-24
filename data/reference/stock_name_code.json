@@ -580,6 +580,11 @@
     "market": "KOSDAQ"
   },
   {
+    "stock_name": "엠에스바이오",
+    "stock_code": "0013Y0",
+    "market": "KOSDAQ"
+  },
+  {
     "stock_name": "태원물산",
     "stock_code": "001420",
     "market": "KOSPI"
@@ -693,6 +698,11 @@
     "stock_name": "TIGER 미국소비트렌드액티브",
     "stock_code": "0015K0",
     "market": "KOSPI"
+  },
+  {
+    "stock_name": "디티에스",
+    "stock_code": "0015M0",
+    "market": "KOSDAQ"
   },
   {
     "stock_name": "아로마티카",
@@ -3950,6 +3960,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "엘리스",
+    "stock_code": "0158S0",
+    "market": "KOSDAQ"
+  },
+  {
     "stock_name": "대현",
     "stock_code": "016090",
     "market": "KOSPI"
@@ -5045,6 +5060,11 @@
     "market": "KOSDAQ"
   },
   {
+    "stock_name": "마이티 미국피지컬AI액티브",
+    "stock_code": "0236J0",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "한국캐피탈",
     "stock_code": "023760",
     "market": "KOSDAQ"
@@ -5235,6 +5255,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "ACE 미국CPU반도체TOP3+",
+    "stock_code": "0252V0",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "시노펙스",
     "stock_code": "025320",
     "market": "KOSDAQ"
@@ -5243,6 +5268,21 @@
     "stock_name": "DH오토웨어",
     "stock_code": "025440",
     "market": "KOSDAQ"
+  },
+  {
+    "stock_name": "KODEX 27-12 금융채(AA-이상)액티브",
+    "stock_code": "0254C0",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "RISE 반도체소부장액티브",
+    "stock_code": "0254H0",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "KODEX 미국배당다우존스액티브",
+    "stock_code": "0254S0",
+    "market": "KOSPI"
   },
   {
     "stock_name": "ACE 29-11 회사채(AA-이상)액티브",
@@ -5270,8 +5310,18 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "TIGER 글로벌MLCC&기판",
+    "stock_code": "0255E0",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "차AI헬스케어",
     "stock_code": "025620",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "1Q 엔비디아고정미국AI반도체",
+    "stock_code": "0256C0",
     "market": "KOSPI"
   },
   {
@@ -11715,6 +11765,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "삼성바이오로직스 5R",
+    "stock_code": "2079401G",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "정다운",
     "stock_code": "208140",
     "market": "KOSDAQ"
@@ -17335,11 +17390,6 @@
     "market": "KOSPI"
   },
   {
-    "stock_name": "삼성FN리츠 4R",
-    "stock_code": "4487301G",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "한국피아이엠",
     "stock_code": "448900",
     "market": "KOSDAQ"
@@ -17745,7 +17795,7 @@
     "market": "KOSDAQ"
   },
   {
-    "stock_name": "벡트",
+    "stock_name": "벡트로보틱스",
     "stock_code": "457600",
     "market": "KOSDAQ"
   },
@@ -19955,6 +20005,21 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "미래에셋 구리 선물 ETN",
+    "stock_code": "520107",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "미래에셋 레버리지 구리 선물 ETN",
+    "stock_code": "520108",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "미래에셋 인버스 2X 구리 선물 ETN",
+    "stock_code": "520109",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "삼성 레버리지 WTI원유 선물 ETN",
     "stock_code": "530031",
     "market": "KOSPI"
@@ -20047,16 +20112,6 @@
   {
     "stock_name": "삼성 인버스 2X S&P500 선물 ETN",
     "stock_code": "530114",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "삼성 레버리지 나스닥 100 TR ETN",
-    "stock_code": "530115",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "삼성 인버스 2X 나스닥 100 TR ETN",
-    "stock_code": "530116",
     "market": "KOSPI"
   },
   {
@@ -20205,6 +20260,16 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "삼성 레버리지 나스닥 100 TR ETN B",
+    "stock_code": "530149",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "삼성 인버스 2X 나스닥 100 TR ETN B",
+    "stock_code": "530150",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "N2 미국 IT TOP5 ETN(H)",
     "stock_code": "550041",
     "market": "KOSPI"
@@ -20240,23 +20305,8 @@
     "market": "KOSPI"
   },
   {
-    "stock_name": "N2 월간 레버리지 선진국 1등주 ETN",
-    "stock_code": "550088",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "N2 월간 레버리지 코스피 200 선물 ETN",
-    "stock_code": "550089",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "N2 방위산업 Top5 ETN",
     "stock_code": "550091",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "N2 월간 레버리지 방위산업 Top5 ETN",
-    "stock_code": "550092",
     "market": "KOSPI"
   },
   {
@@ -20272,16 +20322,6 @@
   {
     "stock_name": "N2 레버리지 국채30년 ETN",
     "stock_code": "550096",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "N2 레버리지 코스닥150 선물 ETN",
-    "stock_code": "550097",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "N2 인버스 2X 코스닥150 선물 ETN",
-    "stock_code": "550098",
     "market": "KOSPI"
   },
   {
@@ -21195,6 +21235,21 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "메리츠 솔랙티브 구리 선물 ETN(H)",
+    "stock_code": "610113",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "메리츠 솔랙티브 2X 구리 선물 ETN(H)",
+    "stock_code": "610114",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "메리츠 솔랙티브 -2X 구리 선물 ETN(H)",
+    "stock_code": "610115",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "하나 레버리지 옥수수 선물 ETN(H)",
     "stock_code": "700011",
     "market": "KOSPI"
@@ -21412,6 +21467,11 @@
   {
     "stock_name": "키움 모험자본창업투자 ETN",
     "stock_code": "760032",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "키움 통안채 6개월 ETN",
+    "stock_code": "760033",
     "market": "KOSPI"
   },
   {

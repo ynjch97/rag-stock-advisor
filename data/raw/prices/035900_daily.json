@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-19",
+    "open": 38050,
+    "high": 40400,
+    "low": 38050,
+    "close": 40200,
+    "volume": 442621,
+    "change_rate": 2.94,
+    "change_price": 1150
+  },
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-20",
+    "open": 40450,
+    "high": 41000,
+    "low": 39300,
+    "close": 39500,
+    "volume": 266507,
+    "change_rate": -1.74,
+    "change_price": -700
+  },
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-21",
+    "open": 39650,
+    "high": 40700,
+    "low": 39450,
+    "close": 39550,
+    "volume": 168209,
+    "change_rate": 0.13,
+    "change_price": 50
+  },
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-22",
+    "open": 39600,
+    "high": 39700,
+    "low": 36750,
+    "close": 38050,
+    "volume": 418542,
+    "change_rate": -3.79,
+    "change_price": -1500
+  },
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-23",
+    "open": 37450,
+    "high": 37800,
+    "low": 36650,
+    "close": 36850,
+    "volume": 208212,
+    "change_rate": -3.15,
+    "change_price": -1200
+  }
+]

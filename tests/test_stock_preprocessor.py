@@ -4,7 +4,9 @@ import json
 import pytest
 
 from src.domain.stock_models import DailyStock
-from src.preprocessing.stock_preprocessor import calculate_stock_trend, preprocess_and_save_stock_trend
+from src.preprocessing.stock_preprocessor import (
+    calculate_stock_trend, load_latest_stock_trend, preprocess_and_save_stock_trend,
+)
 
 
 # 실제 거래일 간격을 가진 일봉과 직전 종가 기반 등락 정보 생성
@@ -98,3 +100,18 @@ def test_invalid_existing_trend_preserved(tmp_path):
     with pytest.raises(ValueError):
         preprocess_and_save_stock_trend(_stocks([100] * 5), file_path=path)
     assert path.read_text(encoding="utf-8") == "{}"
+
+
+# 응답용 추세 로딩 시 미래 기준일과 다른 분석 기간의 결과 제외
+def test_load_trend_respects_date_and_period(tmp_path):
+    path = tmp_path / "trend.json"
+    stocks = _stocks([100, 110, 105, 105, 120])
+    old, _ = preprocess_and_save_stock_trend(stocks, file_path=path)
+    preprocess_and_save_stock_trend(_stocks([100, 110, 105, 105, 120, 125]), file_path=path)
+    preprocess_and_save_stock_trend(stocks, 3, path)
+    assert load_latest_stock_trend("005930", 5, "2026-10-07", path) == old
+    assert load_latest_stock_trend("005930", 5, file_path=path).base_date == "2026-10-08"
+    with pytest.raises(ValueError, match="Stock trend not found"):
+        load_latest_stock_trend("005930", 4, file_path=path)
+    with pytest.raises(ValueError, match="Stock trend not found"):
+        load_latest_stock_trend("005930", 5, "2026-09-30", path)

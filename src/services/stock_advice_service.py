@@ -13,6 +13,8 @@ def generate_stock_advice(context: StockContext) -> str:
 
     stock_overview = _build_stock_overview(stock)
     news_overview = _build_news_overview(summary)
+    if context.get("data_sources", {}).get("news") == "sample":
+        news_overview = "샘플 " + news_overview
     key_news = _build_key_news(news)
     conclusion = _build_conclusion(question["intent"], stock, summary)
 
@@ -33,8 +35,9 @@ def generate_stock_advice(context: StockContext) -> str:
 
 # 주가 흐름 요약 문장 생성
 def _build_stock_overview(stock: dict[str, Any]) -> str:
+    label = f"{stock['base_date']} 종가는" if stock.get("price_type") == "close" else "현재가는"
     return (
-        f"현재가는 {stock['current_price']:,}원이고, "
+        f"{label} {stock['current_price']:,}원이고, "
         f"최근 흐름은 {stock['trend']}입니다."
     )
 
@@ -118,4 +121,4 @@ def _build_decline_reason_conclusion(
     if change_rate < 0:
         return "하락은 확인되지만, 샘플 뉴스만으로는 명확한 원인을 단정하기 어렵습니다."
 
-    return "현재 샘플 데이터 기준으로는 뚜렷한 하락 흐름이 강하게 확인되지는 않습니다."
+    return "조회된 주가 기준으로는 뚜렷한 하락이 확인되지 않습니다."
