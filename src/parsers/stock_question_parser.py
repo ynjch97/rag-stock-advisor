@@ -22,7 +22,8 @@ def parse_stock_question(
     period = _validate_period(analysis.period, today)
     if analysis.needs_clarification or not analysis.stocks:
         return ParsedQuestion(question, (), analysis.intent, period, True,
-                              analysis.clarification_question or "분석할 종목과 기간을 구체적으로 알려주세요.")
+                              analysis.clarification_question or "분석할 종목과 기간을 구체적으로 알려주세요.",
+                              openai_call_attempts=analysis.openai_call_attempts)
     if stock_infos is None:
         try:
             stock_infos = load_stock_references()
@@ -38,12 +39,15 @@ def parse_stock_question(
         match = _resolve_stock(item, stock_infos)
         if match is None:
             return ParsedQuestion(question, tuple(resolved), analysis.intent, period, True,
-                                  f"'{item.mention}'의 정식 종목명이나 종목코드를 알려주세요.")
+                                  f"'{item.mention}'의 정식 종목명이나 종목코드를 알려주세요.",
+                                  openai_call_attempts=analysis.openai_call_attempts)
         if match.stock_code not in {stock.stock_code for stock in resolved}:
             resolved.append(match)
     if analysis.intent == "comparison_reason" and len(resolved) < 2:
-        return ParsedQuestion(question, tuple(resolved), analysis.intent, period, True, "비교할 두 종목을 알려주세요.")
-    return ParsedQuestion(question, tuple(resolved), analysis.intent, period)
+        return ParsedQuestion(question, tuple(resolved), analysis.intent, period, True, "비교할 두 종목을 알려주세요.",
+                              openai_call_attempts=analysis.openai_call_attempts)
+    return ParsedQuestion(question, tuple(resolved), analysis.intent, period,
+                          openai_call_attempts=analysis.openai_call_attempts)
 
 
 # 표기 차이만 정규화하며 수동 별칭 목록은 사용하지 않음

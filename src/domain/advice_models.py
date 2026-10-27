@@ -28,6 +28,7 @@ class ParsedQuestion:
     period: QueryPeriod = field(default_factory=QueryPeriod)
     needs_clarification: bool = False
     clarification_question: str | None = None
+    openai_call_attempts: int = 0
 
     # 기존 단일 종목 호출부에서 첫 종목명 참조 지원
     @property

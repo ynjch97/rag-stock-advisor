@@ -341,7 +341,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 - 자연어 질문 > LLM 기반 분석 > 질문 구조화 (`ParsedQuestion`) > 작업 계획
 - OpenAI LLM : Tool Calling 사용, 구조화된 JSON 출력을 위함
   - `gpt-5-mini` : 비용이 저렴하고 응답 속도가 빠름 / 질문 분류, 정보 추출, Tool Calling 등 반복 호출에 적합
-```
+``` bash
 [질의] “삼전이 하이닉스보다 오르는 이유는?”
 
 [작업 분해]
@@ -351,6 +351,8 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 4. 같은 기간의 상대적인 가격 흐름 비교
 5. 두 기업의 뉴스·공시 검색
 6. 비교 결과와 원인 후보 통합
+
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; print(json.dumps(parse_stock_question('삼성SDS  최근 주가 전망?').to_dict(), ensure_ascii=False, indent=2))"
 ```
 
 ### 4-4. Retriever Layer

@@ -1,9 +1,12 @@
-from contextlib import nullcontext
+import atexit
+from contextvars import ContextVar
 from datetime import date
+from functools import lru_cache
 from typing import Literal
 
-from openai import OpenAI, OpenAIError
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+import httpx
+from openai import DefaultHttpxClient, OpenAI, OpenAIError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 
 from src.config.settings import Settings, settings
 
@@ -26,11 +29,36 @@ class AnalyzedPeriod(_StrictModel):
 
 
 class QuestionAnalysis(_StrictModel):
+    _openai_call_attempts: int = PrivateAttr(default=0)
     stocks: list[AnalyzedStock] = Field(max_length=10)
     intent: Literal["buy_opinion", "rise_reason", "decline_reason", "comparison_reason", "general_analysis"]
     period: AnalyzedPeriod
     needs_clarification: bool
     clarification_question: str | None
+
+    # LLM 출력 스키마에 포함하지 않는 실제 HTTP 요청 횟수 반환
+    @property
+    def openai_call_attempts(self) -> int:
+        return self._openai_call_attempts
+
+
+_request_attempts: ContextVar[int] = ContextVar("openai_request_attempts", default=0)
+
+
+# SDK 자동 재시도를 포함하여 현재 질문의 HTTP 요청 횟수 집계
+def _count_request_attempt(request: httpx.Request) -> None:
+    _request_attempts.set(_request_attempts.get() + 1)
+
+
+# 동일 API 키의 클라이언트와 연결 풀을 프로세스 종료 전까지 재사용
+@lru_cache(maxsize=None)
+def _get_openai_client(api_key: str) -> OpenAI:
+    client = OpenAI(
+        api_key=api_key, timeout=20.0, max_retries=1,
+        http_client=DefaultHttpxClient(event_hooks={"request": [_count_request_attempt]}),
+    )
+    atexit.register(client.close)
+    return client
 
 
 TOOL_NAME = "submit_question_analysis"
@@ -58,31 +86,38 @@ def analyze_stock_question(
 ) -> QuestionAnalysis:
     if client is None and not app_settings.openai_api_key:
         raise ValueError(".env에 OPENAI_API_KEY를 설정해야 합니다.")
+    connection = client if client is not None else _get_openai_client(app_settings.openai_api_key)
+    # 추론 미지원 모델에는 reasoning 매개변수를 전달하지 않음
+    reasoning_options = {}
+    if app_settings.openai_model.startswith(("gpt-5", "o1", "o3", "o4")):
+        reasoning_options["reasoning"] = {"effort": app_settings.openai_reasoning}
+    counter_token = _request_attempts.set(0)
     try:
-        with (
-            nullcontext(client) if client is not None else OpenAI(
-                api_key=app_settings.openai_api_key, timeout=20.0, max_retries=1,
-            )
-        ) as connection:
-            response = connection.responses.create(
-                model=app_settings.openai_model,
-                instructions=ANALYSIS_INSTRUCTIONS + f"\n한국 기준일: {reference_date.isoformat()}",
-                input=question, tools=[{
-                    "type": "function", "name": TOOL_NAME,
-                    "description": "질문의 종목 후보, 의도, 기간, 확인 필요 여부를 제출한다.",
-                    "parameters": QuestionAnalysis.model_json_schema(), "strict": True,
-                }],
-                tool_choice={"type": "function", "name": TOOL_NAME},
-                parallel_tool_calls=False, max_output_tokens=2000, store=False,
-            )
+        response = connection.responses.create(
+            model=app_settings.openai_model,
+            instructions=ANALYSIS_INSTRUCTIONS + f"\n한국 기준일: {reference_date.isoformat()}",
+            input=question, tools=[{
+                "type": "function", "name": TOOL_NAME,
+                "description": "질문의 종목 후보, 의도, 기간, 확인 필요 여부를 제출한다.",
+                "parameters": QuestionAnalysis.model_json_schema(), "strict": True,
+            }],
+            tool_choice={"type": "function", "name": TOOL_NAME},
+            parallel_tool_calls=False, max_output_tokens=2000, store=False,
+            **reasoning_options,
+        )
     except OpenAIError as error:
         raise ValueError(f"OpenAI 질문 분석 요청 실패: {type(error).__name__}") from None
+    finally:
+        attempts = _request_attempts.get()
+        _request_attempts.reset(counter_token)
     if response.status != "completed":
         raise ValueError("OpenAI 질문 분석이 완료되지 않았습니다.")
     calls = [item for item in response.output if item.type == "function_call"]
     if len(calls) != 1 or calls[0].name != TOOL_NAME:
         raise ValueError("OpenAI가 유효한 질문 분석 도구 호출을 반환하지 않았습니다.")
     try:
-        return QuestionAnalysis.model_validate_json(calls[0].arguments)
+        analysis = QuestionAnalysis.model_validate_json(calls[0].arguments)
+        analysis._openai_call_attempts = attempts or 1
+        return analysis
     except ValidationError:
         raise ValueError("OpenAI 질문 분석 결과가 지정된 구조와 일치하지 않습니다.") from None

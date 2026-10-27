@@ -135,3 +135,7 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   "clarification_question": null
 }
 ```
+- 응답 지연 개선
+  - `OPENAI_REASONING` 값을 기본값에서 `minimal` 로 변경
+  - OpenAI 호출 시도 횟수 확인을 위해 `openai_call_attempts` 값 추가
+    - 추후 문제 발생 시 확인을 위함 (현재는 1회 실행)

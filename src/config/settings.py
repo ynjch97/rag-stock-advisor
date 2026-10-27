@@ -26,6 +26,7 @@ class Settings:
     news_api_key: str | None
     vector_db_provider: str
     vector_db_path: str
+    openai_reasoning: str = "medium"
 
 
 def load_settings(env_path: Path = ENV_PATH) -> Settings:
@@ -42,6 +43,7 @@ def load_settings(env_path: Path = ENV_PATH) -> Settings:
         app_name=get_value("APP_NAME", "RAG Stock Advisor") or "RAG Stock Advisor",
         log_level=get_value("LOG_LEVEL", "INFO") or "INFO",
         openai_api_key=get_value("OPENAI_API_KEY"),
+        openai_reasoning=get_value("OPENAI_REASONING", "medium") or "medium",
         openai_model=get_value("OPENAI_MODEL", "gpt-4o") or "gpt-4o",
         openai_embedding_model=(
             get_value("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")

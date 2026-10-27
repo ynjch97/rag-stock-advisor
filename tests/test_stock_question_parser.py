@@ -198,3 +198,20 @@ def test_hallucinated_mention_is_rejected(monkeypatch):
     monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
     with pytest.raises(ValueError, match="원문 표현"):
         parse_stock_question("삼전 전망")
+
+
+# 정상 응답·확인 질문 모두 실제 호출 횟수를 직렬화 결과에 포함
+@pytest.mark.parametrize("case", ["normal", "clarification", "unknown", "comparison"])
+def test_openai_attempts_in_parsed_output(monkeypatch, case):
+    analysis = QuestionAnalysis.model_validate({
+        "stocks": [{"mention": "삼전", "stock_name": "삼성전자", "role": "subject"}],
+        "intent": "comparison_reason" if case == "comparison" else "general_analysis",
+        "period": {"kind": "default", "recent_days": None, "start_date": None, "end_date": None},
+        "needs_clarification": case == "clarification", "clarification_question": None,
+    })
+    analysis._openai_call_attempts = 2
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("삼전 전망", stock_infos=[] if case == "unknown" else None)
+    assert parsed.openai_call_attempts == 2
+    assert parsed.to_dict()["openai_call_attempts"] == 2
+    assert parsed.needs_clarification == (case != "normal")
