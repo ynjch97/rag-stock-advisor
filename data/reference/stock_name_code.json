@@ -4720,6 +4720,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "에스케이증권제14호기업인수목적",
+    "stock_code": "0205H0",
+    "market": "KOSDAQ"
+  },
+  {
     "stock_name": "1Q 현대차기아채권혼합50",
     "stock_code": "0206G0",
     "market": "KOSPI"
@@ -5255,6 +5260,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "KoAct 코리아TOP5플러스채권혼합50액티브",
+    "stock_code": "0252P0",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "ACE 미국CPU반도체TOP3+",
     "stock_code": "0252V0",
     "market": "KOSPI"
@@ -5310,6 +5320,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "FOCUS 스페이스X밸류체인",
+    "stock_code": "0255D0",
+    "market": "KOSPI"
+  },
+  {
     "stock_name": "TIGER 글로벌MLCC&기판",
     "stock_code": "0255E0",
     "market": "KOSPI"
@@ -5357,6 +5372,11 @@
   {
     "stock_name": "한국주강",
     "stock_code": "025890",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "1Q 미국AI테크플랫폼TOP10",
+    "stock_code": "0258B0",
     "market": "KOSPI"
   },
   {
@@ -20075,16 +20095,6 @@
     "market": "KOSPI"
   },
   {
-    "stock_name": "삼성 구리 선물 ETN(H)",
-    "stock_code": "530095",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "삼성 인버스 구리 선물 ETN(H)",
-    "stock_code": "530096",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "삼성 레버리지 코스피200 선물 ETN",
     "stock_code": "530104",
     "market": "KOSPI"
@@ -20275,16 +20285,6 @@
     "market": "KOSPI"
   },
   {
-    "stock_name": "N2 레버리지 구리 선물 ETN(H)",
-    "stock_code": "550069",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "N2 인버스 레버리지 구리 선물 ETN(H)",
-    "stock_code": "550070",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "N2 KIS CD금리투자 ETN",
     "stock_code": "550082",
     "market": "KOSPI"
@@ -20377,21 +20377,6 @@
   {
     "stock_name": "한투 인버스2X플래티넘선물 ETN",
     "stock_code": "570070",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "한투 구리선물 ETN",
-    "stock_code": "570071",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "한투 레버리지구리선물 ETN",
-    "stock_code": "570072",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "한투 인버스2X구리선물 ETN",
-    "stock_code": "570073",
     "market": "KOSPI"
   },
   {
@@ -20607,16 +20592,6 @@
   {
     "stock_name": "KB Wise 분할매매 ETN",
     "stock_code": "580010",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "KB 레버리지 구리 선물 ETN(H)",
-    "stock_code": "580032",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "KB 인버스 2X 구리 선물 ETN(H)",
-    "stock_code": "580033",
     "market": "KOSPI"
   },
   {
@@ -20902,16 +20877,6 @@
   {
     "stock_name": "메리츠 인버스 2X 미국채10년 ETN(H)",
     "stock_code": "610025",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "메리츠 레버리지 구리 선물 ETN(H)",
-    "stock_code": "610028",
-    "market": "KOSPI"
-  },
-  {
-    "stock_name": "메리츠 인버스 2X 구리 선물 ETN(H)",
-    "stock_code": "610029",
     "market": "KOSPI"
   },
   {

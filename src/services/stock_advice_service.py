@@ -33,6 +33,22 @@ def generate_stock_advice(context: StockContext) -> str:
     )
 
 
+# 복수 종목의 분석을 합치고 같은 기준일·기간일 때만 상대 흐름 비교
+def generate_stock_comparison_advice(contexts: list[StockContext]) -> str:
+    sections = [generate_stock_advice(context) for context in contexts]
+    trends = [context["stock_trend"] for context in contexts]
+    if all(trends) and len({(trend["base_date"], trend["recent_days"]) for trend in trends}) == 1:
+        strongest = max(trends, key=lambda trend: trend["recent_change_rate"])
+        weakest = min(trends, key=lambda trend: trend["recent_change_rate"])
+        if strongest["recent_change_rate"] == weakest["recent_change_rate"]:
+            comparison = "동일 기간의 종가 변화율은 같습니다."
+        else:
+            comparison = f"동일 기간에는 {strongest['stock_name']}의 가격 흐름이 상대적으로 더 강했습니다."
+    else:
+        comparison = "동일 기준일·기간의 실제 추세가 확보되지 않아 상대 흐름을 확정하지 않았습니다."
+    return "\n\n".join(sections + [comparison, "상승·하락 원인은 실제 뉴스·공시 근거를 추가로 확인해야 합니다."])
+
+
 # 주가 흐름 요약 문장 생성
 def _build_stock_overview(stock: dict[str, Any]) -> str:
     label = f"{stock['base_date']} 종가는" if stock.get("price_type") == "close" else "현재가는"

@@ -11,7 +11,31 @@ from src.app.stock_advice_workflow import run_stock_advice_workflow
 from src.collectors.stock_collector import collect_stock_price
 from src.config.settings import settings
 from src.domain.stock_models import DailyStock, RealtimeStock, StockTrend
-from src.parsers.stock_question_parser import ParsedQuestion
+from src.domain.advice_models import ParsedQuestion, ParsedStock, QueryPeriod
+from src.parsers.llm_question_analyzer import QuestionAnalysis
+
+
+# 기존 workflow 테스트는 OpenAI 응답만 모의하여 외부 호출 방지
+@pytest.fixture(autouse=True)
+def question_analysis(monkeypatch):
+    cases = {
+        "삼성전자 사도 될까?": ("삼성전자", "buy_opinion", None),
+        "삼성전자 전망": ("삼성전자", "general_analysis", None),
+        "삼성전자 최근 3거래일 사도 될까?": ("삼성전자", "buy_opinion", 3),
+        "두산에너빌리티 최근 3거래일 사도 될까?": ("두산에너빌리티", "buy_opinion", 3),
+    }
+
+    # 정해진 질문의 분석 결과를 반환
+    def analyze(question, *args):
+        name, intent, days = cases[question]
+        return QuestionAnalysis.model_validate({
+            "stocks": [{"mention": name, "stock_name": name, "role": "subject"}],
+            "intent": intent, "period": {"kind": "default" if days is None else "trading_days",
+                "recent_days": days, "start_date": None, "end_date": None},
+            "needs_clarification": False, "clarification_question": None,
+        })
+
+    monkeypatch.setattr("src.parsers.stock_question_parser.analyze_stock_question", analyze)
 
 
 def test_run_stock_advice_workflow_generates_answer(monkeypatch):
@@ -90,7 +114,7 @@ def test_workflow_rejects_unsupported_provider(monkeypatch):
 # 실제 시세 조회 실패를 샘플 값으로 대체하지 않고 호출자에게 전달
 def test_toss_workflow_does_not_fallback_on_api_error(monkeypatch):
     monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=ParsedQuestion(
-        "삼성전자 전망", "삼성전자", "005930", "general_analysis",
+        "삼성전자 전망", (ParsedStock("삼성전자", "삼성전자", "005930"),), "general_analysis",
     )))
     monkeypatch.setattr(workflow, "collect_stock_price", Mock(side_effect=httpx.ConnectError("offline")))
     sample_loader = Mock()
@@ -155,3 +179,51 @@ def test_toss_workflow_end_to_end(tmp_path, monkeypatch):
     assert trend["base_date"] == "2026-10-19"
     assert trend["recent_days"] == 3
     assert paths == ["/api/v1/market-calendar/KR", "/api/v1/candles", "/api/v1/prices"]
+
+
+# 질문에서 추출된 두 종목을 모두 조회하고 상대적 강세를 실제 상승으로 오인하지 않음
+def test_multiple_stocks_are_passed_to_collectors(monkeypatch):
+    parsed = ParsedQuestion(
+        "삼전이 하이닉스보다 오르는 이유는?",
+        (ParsedStock("삼전", "삼성전자", "005930", "target"),
+         ParsedStock("하이닉스", "SK하이닉스", "000660", "comparison")),
+        "comparison_reason",
+    )
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    prices = {
+        stock.stock_code: DailyStock(stock.stock_name, stock.stock_code, "2026-10-23",
+                                    100, 110, 90, 95, 1000, -5.0, -5)
+        for stock in parsed.stocks
+    }
+    trends = {
+        stock.stock_code: StockTrend(stock.stock_name, stock.stock_code, "2026-10-23",
+                                    5, -1.0 if index == 0 else -2.0, 1, 4, "최근 5거래일 하락")
+        for index, stock in enumerate(parsed.stocks)
+    }
+    collector = Mock(side_effect=lambda name, code, **kwargs: prices[code])
+    monkeypatch.setattr(workflow, "collect_stock_price", collector)
+    monkeypatch.setattr(workflow, "load_latest_stock_trend", lambda code, *args, **kwargs: trends[code])
+    answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
+    assert collector.call_count == 2
+    assert [call.args[1] for call in collector.call_args_list] == ["005930", "000660"]
+    assert "삼성전자" in answer and "SK하이닉스" in answer
+    assert "삼성전자의 가격 흐름이 상대적으로 더 강했습니다" in answer
+    assert "실제 뉴스·공시 근거" in answer
+    assert "%" not in answer
+
+
+# 불명확한 종목과 미지원 날짜 범위는 주가 조회 전에 확인 메시지 반환
+@pytest.mark.parametrize("period,clarification,expected", [
+    (QueryPeriod(), True, "정확한 종목명을 알려주세요."),
+    (QueryPeriod("date_range", None, "2026-09-26", "2026-10-26"), False, "최근 몇 거래일"),
+])
+def test_query_clarification_stops_execution(monkeypatch, period, clarification, expected):
+    parsed = ParsedQuestion(
+        "질문", (ParsedStock("삼전", "삼성전자", "005930"),),
+        "general_analysis", period, clarification, "정확한 종목명을 알려주세요.",
+    )
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    collector = Mock()
+    monkeypatch.setattr(workflow, "collect_stock_price", collector)
+    assert expected in run_stock_advice_workflow("질문", replace(settings, stock_api_provider="toss"))
+    collector.assert_not_called()

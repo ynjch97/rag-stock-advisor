@@ -1,103 +1,85 @@
-from dataclasses import dataclass, asdict
-import re
+from datetime import date, datetime, timedelta, timezone
+
+from openai import OpenAI
 
 from src.collectors.stock_reference_collector import refresh_stock_references
+from src.config.settings import Settings, settings
 from src.data_loaders.stock_reference_loader import load_stock_references
+from src.domain.advice_models import ParsedQuestion, ParsedStock, QueryPeriod
 from src.domain.stock_models import DEFAULT_RECENT_DAYS
+from src.parsers.llm_question_analyzer import AnalyzedPeriod, AnalyzedStock, analyze_stock_question
 
-BUY_OPINION_KEYWORDS = ["사도", "매수", "살까", "사야", "진입"]
-DECLINE_REASON_KEYWORDS = ["하락", "떨어", "빠지", "급락", "약세"]
-
-@dataclass(frozen=True)
-class ParsedQuestion:
-    original_question: str
-    stock_name: str
-    stock_code: str
-    intent: str
-    recent_days: int = DEFAULT_RECENT_DAYS
-
-    # 질문 분석 결과를 딕셔너리로 변환
-    def to_dict(self) -> dict[str, str | int | None]:
-        return asdict(self)
-    
-# 사용자 질문에서 종목명, 종목코드, 의도를 추출
+# LLM으로 질문을 해석하고 기준정보 검증 후 ParsedQuestion 반환
 def parse_stock_question(
     question: str, *, stock_infos: list[dict[str, str]] | None = None,
+    app_settings: Settings = settings, client: OpenAI | None = None,
+    reference_date: date | None = None,
 ) -> ParsedQuestion:
-    normalized_question = question.strip()
-
-    if not normalized_question:
+    if not question.strip():
         raise ValueError("Question must not be empty.")
+    today = reference_date or datetime.now(timezone(timedelta(hours=9))).date()
+    analysis = analyze_stock_question(question.strip(), today, app_settings, client)
+    period = _validate_period(analysis.period, today)
+    if analysis.needs_clarification or not analysis.stocks:
+        return ParsedQuestion(question, (), analysis.intent, period, True,
+                              analysis.clarification_question or "분석할 종목과 기간을 구체적으로 알려주세요.")
+    if stock_infos is None:
+        try:
+            stock_infos = load_stock_references()
+        except FileNotFoundError:
+            stock_infos = refresh_stock_references()
+        else:
+            if any(_resolve_stock(item, stock_infos) is None for item in analysis.stocks):
+                stock_infos = refresh_stock_references()
+    resolved = []
+    for item in analysis.stocks:
+        if not item.mention.strip() or _normalize_name(item.mention) not in _normalize_name(question):
+            raise ValueError("LLM의 종목 원문 표현이 사용자 질문에 존재하지 않습니다.")
+        match = _resolve_stock(item, stock_infos)
+        if match is None:
+            return ParsedQuestion(question, tuple(resolved), analysis.intent, period, True,
+                                  f"'{item.mention}'의 정식 종목명이나 종목코드를 알려주세요.")
+        if match.stock_code not in {stock.stock_code for stock in resolved}:
+            resolved.append(match)
+    if analysis.intent == "comparison_reason" and len(resolved) < 2:
+        return ParsedQuestion(question, tuple(resolved), analysis.intent, period, True, "비교할 두 종목을 알려주세요.")
+    return ParsedQuestion(question, tuple(resolved), analysis.intent, period)
 
-    recent_days = _extract_recent_days(normalized_question)
-    stock_info = (
-        _extract_stock_info(normalized_question) if stock_infos is None
-        else _find_stock_info(normalized_question, stock_infos)
-    )
-    if stock_info is None:
-        raise ValueError(f"Stock name or stock code not found in question: {question}")
-    intent = _classify_intent(normalized_question)        # 의도 추출하기
 
-    return ParsedQuestion(
-        original_question=question,  # 삼성전자 사도 될까?
-        stock_name=stock_info["stock_name"], # 삼성전자
-        stock_code=stock_info["stock_code"], # 005930
-        intent=intent,               # buy_opinion
-        recent_days=recent_days,
-    )
+# 표기 차이만 정규화하며 수동 별칭 목록은 사용하지 않음
+def _normalize_name(value: str) -> str:
+    return "".join(value.split()).casefold()
 
 
-# 질문의 '최근 n거래일/최근 n일'을 거래일 수로 해석하고 미지정 시 5일 사용
-def _extract_recent_days(question: str) -> int:
-    match = re.search(r"최근\s*(\d+)\s*(?:거래일|일)", question)
-    if match is None:
-        return DEFAULT_RECENT_DAYS
-    recent_days = int(match.group(1))
-    if not 1 <= recent_days <= 199:
-        raise ValueError("recent_days must be between 1 and 199 trading days.")
-    return recent_days
+# 코드 원문 또는 정식 이름 후보가 기준정보에서 유일하게 일치할 때 코드 확정
+def _resolve_stock(item: AnalyzedStock, records: list[dict[str, str]]) -> ParsedStock | None:
+    matches = [record for record in records if record["stock_code"] == item.mention.strip()]
+    if not matches:
+        matches = [record for record in records if _normalize_name(record["stock_name"]) ==
+                   _normalize_name(item.stock_name or item.mention)]
+    unique = {record["stock_code"]: record for record in matches}
+    if len(unique) != 1:
+        return None
+    record = next(iter(unique.values()))
+    return ParsedStock(item.mention, record["stock_name"], record["stock_code"], item.role)
 
 
-# 기준정보에서 종목을 찾고 파일 누락 또는 매칭 실패 시 한 번만 갱신
-def _extract_stock_info(question: str) -> dict[str, str]:
-    refreshed = False
+# 기간 기본값·날짜 순서를 검증하고 달력 기간을 거래일로 임의 환산하지 않음
+def _validate_period(period: AnalyzedPeriod, today: date) -> QueryPeriod:
+    if period.kind in ("default", "trading_days"):
+        if period.start_date is not None or period.end_date is not None:
+            raise ValueError("거래일 기간과 날짜 범위를 함께 지정할 수 없습니다.")
+        if period.kind == "default" and period.recent_days is not None:
+            raise ValueError("미지정 기간은 Python 기본값을 사용해야 합니다.")
+        if period.kind == "trading_days" and period.recent_days is None:
+            raise ValueError("거래일 수가 누락되었습니다.")
+        return QueryPeriod(period.kind, period.recent_days or DEFAULT_RECENT_DAYS)
+    if period.recent_days is not None:
+        raise ValueError("날짜 범위에는 거래일 수를 함께 지정할 수 없습니다.")
     try:
-        stock_infos = load_stock_references()
-    except FileNotFoundError:
-        stock_infos = refresh_stock_references()
-        refreshed = True
-
-    stock_info = _find_stock_info(question, stock_infos)
-    if stock_info is None and not refreshed:
-        stock_info = _find_stock_info(question, refresh_stock_references())
-    if stock_info is not None:
-        return stock_info
-
-    raise ValueError(f"Stock name or stock code not found in question: {question}")
-
-
-# 질문 유형 기준으로 의도 분류 (추후 LLM 으로 변경)
-def _classify_intent(question: str) -> str:
-    if any(keyword in question for keyword in BUY_OPINION_KEYWORDS):
-        return "buy_opinion"
-
-    if any(keyword in question for keyword in DECLINE_REASON_KEYWORDS):
-        return "decline_reason"
-
-    return "general_analysis"
-
-
-# 종목코드를 우선 확인하고 긴 종목명부터 검사하여 부분 매칭 충돌 방지
-def _find_stock_info(
-    question: str, stock_infos: list[dict[str, str]],
-) -> dict[str, str] | None:
-    codes = set(re.findall(r"(?<![A-Za-z0-9])[A-Za-z0-9]{6}(?![A-Za-z0-9])", question))
-    for stock_info in stock_infos:
-        if stock_info["stock_code"] in codes:
-            return stock_info
-    for stock_info in sorted(
-        stock_infos, key=lambda stock: len(stock["stock_name"]), reverse=True,
-    ):
-        if stock_info["stock_name"] in question:
-            return stock_info
-    return None
+        start, end = date.fromisoformat(period.start_date), date.fromisoformat(period.end_date)
+    except (TypeError, ValueError):
+        raise ValueError("유효한 시작일과 종료일이 필요합니다.") from None
+    if start > end or end > today:
+        raise ValueError("조회 기간의 날짜 순서 또는 미래 날짜를 확인해야 합니다.")
+    return QueryPeriod("date_range", None, start.isoformat(), end.isoformat())

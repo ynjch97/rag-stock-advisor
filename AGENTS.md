@@ -1,6 +1,6 @@
 # 폴더 구조 및 파일 설명
 - 프로젝트에 대한 자세한 설명은 `README.md` 참고
-``` text
+``` bash
 README.md                           # 개발 관련 내용
 AGENTS.md                           # 개발 규칙
 .env                                # 환경변수 관리 (API 키 정보)
@@ -37,6 +37,7 @@ src/
   domain/
     __init__.py
     stock_models.py                 # 주가 데이터 구조
+    advice_models.py                # 질문 분석 구조
 
   data_loaders/
     __init__.py
@@ -56,7 +57,8 @@ src/
 
   parsers/
     __init__.py
-    stock_question_parser.py        # 사용자 질문에서 종목명, 의도, 기간 추출
+    llm_question_analyzer.py        # 사용자 질문을 OpenAI LLM 으로 분석/구조화
+    stock_question_parser.py        # 사용자 질문에서 종목명, 의도, 기간 추출 -> ParsedQuestion 반환
 
   services/
     __init__.py

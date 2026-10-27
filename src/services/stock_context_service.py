@@ -1,7 +1,7 @@
 from typing import Any
 from dataclasses import asdict
 from src.domain.stock_models import StockTrend
-from src.parsers.stock_question_parser import ParsedQuestion
+from src.domain.advice_models import ParsedQuestion
 
 StockRecord = dict[str, Any]
 NewsRecord = dict[str, Any]
@@ -22,6 +22,8 @@ def build_stock_context(
             "original_question": parsed_question.original_question,
             "intent": parsed_question.intent,
             "recent_days": parsed_question.recent_days,
+            "stocks": [asdict(stock) for stock in parsed_question.stocks],
+            "period": asdict(parsed_question.period),
         },
         "stock": {
             **stock_data,

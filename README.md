@@ -337,6 +337,22 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - *매수 판단 질문 : 현재가/추세 확인 → 뉴스/리포트 검색 → 리스크/긍정 요인 비교*
 - 중간 결과를 바탕으로 추가 검색을 수행하는 멀티 스텝 Retrieval 및 Reasoning -> 단순 RAG를 넘어서는 Agentic RAG 구조를 구현
 
+#### 4-3-1. Agent 기반 Query 분석
+- 자연어 질문 > LLM 기반 분석 > 질문 구조화 (`ParsedQuestion`) > 작업 계획
+- OpenAI LLM : Tool Calling 사용, 구조화된 JSON 출력을 위함
+  - `gpt-5-mini` : 비용이 저렴하고 응답 속도가 빠름 / 질문 분류, 정보 추출, Tool Calling 등 반복 호출에 적합
+```
+[질의] “삼전이 하이닉스보다 오르는 이유는?”
+
+[작업 분해]
+1. 두 종목의 동일 기준일·기간 결정
+2. 종목 별칭, 질의 의도(상승 원인) 해석
+3. 삼성전자/SK하이닉스 주가·추세 확보
+4. 같은 기간의 상대적인 가격 흐름 비교
+5. 두 기업의 뉴스·공시 검색
+6. 비교 결과와 원인 후보 통합
+```
+
 ### 4-4. Retriever Layer
 - 뉴스 데이터
   - Embedding Model을 통해 벡터화되어 Vector DB에 저장됨

@@ -98,5 +98,40 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 ### 4. 질문 분석
 
 #### Question Parser
-- `stock_question_parser.py`
+- `stock_question_parser.py`, `llm_question_analyzer.py`
   - LLM 기반으로 비정형 표현의 의도/기간 추출
+  - `ParsedQuestion` 확장
+    - `original_question` : 원본 질문
+    - `stocks` : 단/복수 종목 목록 (원문 표현, 정식 종목명 또는 코드)
+    - `intent` : 매수 판단, 상승/하락 원인, 종목 비교 등
+    - `period` : 거래일 수, 기간, 명시적 날짜 범위 구분
+    - `needs_clarification` : 종목이나 기간이 모호한지 여부
+    - `clarification_question` : 필요한 확인 질문
+``` json
+{
+  "original_question": "삼전이 하이닉스보다 오르는 이유는?",
+  "stocks": [
+    {
+      "mention": "삼전",
+      "stock_name": "삼성전자",
+      "stock_code": "005930",
+      "role": "target"
+    },
+    {
+      "mention": "하이닉스",
+      "stock_name": "SK하이닉스",
+      "stock_code": "000660",
+      "role": "comparison"
+    }
+  ],
+  "intent": "rise_reason",
+  "period": {
+    "kind": "default",
+    "recent_days": 5,
+    "start_date": null,
+    "end_date": null
+  },
+  "needs_clarification": false,
+  "clarification_question": null
+}
+```
