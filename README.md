@@ -122,12 +122,13 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ```
 
 ### 2-3. 뉴스 데이터
-- JSON 필드 구조 (sample 데이터 기준)
+- JSON 필드 구조 (raw 데이터 기준)
 ``` json
 [
   {
     "stock_name": "삼성전자",                                    # 종목명
     "stock_code": "005930",                                     # 종목코드
+    "url": "https://www.fnnews.com/news/202611030838053580",    # 뉴스 URL
     "title": "삼성전자 반도체 업황 회복 기대",                      # 뉴스 제목
     "summary": "메모리 반도체 가격 회복 가능성이 제기되고 있습니다.",  # 뉴스 요약
     "sentiment": "positive",                                    # 뉴스 감성: positive / neutral / negative
@@ -309,7 +310,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 - 실시간 데이터를 제외한 주가 데이터는 **DailyStock(일별 OHLCV)**으로 저장
   - 필요 시 전처리 후 **StockTrend(추세 정보)** 저장도 함께 실행
 
-### 3-2-5. 주가 데이터 전처리 기준
+#### 3-2-5. 주가 데이터 전처리 기준
 - 해당 종목의 StockTrend 파일이 없거나, 새로운 거래일의 DailyStock이 추가되었을 경우 전처리 실행
 - 전처리 데이터는 최근 n거래일을 기준으로 추세를 분석하여 생성 (일봉 n개를 의미)
   - 장중 실시간 데이터는 저장하지 않음
@@ -320,6 +321,40 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - `up_days`, `down_days` : 하락/상승일 카운트
 
 ### 3-3. 뉴스 데이터
+- 네이버 뉴스 API
+  - https://developers.naver.com/docs/serviceapi/search/news/news.md
+  - 수집 방식 : 뉴스 API JSON 타입으로 수집
+- 경제/금융 뉴스 위주의 수집 (한국경제, 매일경제, 서울경제, 이데일리, 연합뉴스, 머니투데이)
+- 기업 실적/공시, 증시 동향, 금리/환율, 정부 정책, 산업별 이슈, 글로벌 경제 동향, 애널리스트 전망 등 주가에 영향을 미치는 뉴스로 구성
+- 수집 데이터 : 기사 URL, 제목, 본문, 발행일
+
+#### 3-3-1. 뉴스 데이터 전처리 전략
+- 결측치 처리 : 제목, 본문 누락 등 불완전한 기사 제거
+- 텍스트 정제
+  - 불필요한 HTML 태그 제거, 광고성 문구 및 특수문자 제거
+  - 기업명, 금융 수치, 부정 표현 등 의미 분석에 필요한 정보는 보존
+- 메타데이터 표준화: 언론사, 날짜, 종목 코드 표준화
+- 뉴스 URL 기준으로 중복 기사 제거 + 유사 기사 필터링(제목/본문 유사도 및 발행일 기준)
+
+#### 3-3-2. 뉴스 데이터 청킹
+- 데이터 수집/갱신 시 수행
+- Recursive Chunking (문단·문장 경계를 우선) 
+  - 문맥 보존(주가 상승 원인과 기업명이 분리되지 않도록 함)
+  - 수치 보존(주가, 등락률, 매출액, 영업이익 등의 수치를 원문 그대로 유지)
+  - `LangChain` 의 `RecursiveCharacterTextSplitter`
+- 500~800자를 기준으로 100자 Overlap 적용
+- 분할 기준	: 문단 및 문장 경계 우선
+- 메타데이터 : 종목코드, 기업명, 기사 제목, 작성일, 언론사, URL
+- 예외 처리 : 짧은 기사는 분할하지 않고 전체 유지
+
+#### 3-3-2. 뉴스 데이터 인덱싱
+- 데이터 수집/갱신 시 수행 (사용자 질의 시 해당 인덱스에서 검색 수행됨)
+- FAISS
+  - 임베딩(텍스트 → 벡터 변환) > 임베딩 벡터 > FAISS 인덱싱 > Vector Search (의미 기반)
+  - Embedding Model을 통해 벡터화되어 Vector DB에 저장됨
+- BM25
+  - 텍스트 토큰화(키워드 처리) > BM25 인덱싱 > Keyword Search (키워드 기반)
+  - 한국어 형태소 분석기(Kiwi 등)를 이용하여 뉴스 텍스트 토큰화
 
 ## 4. 시스템 아키텍처
 
@@ -352,17 +387,17 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 5. 두 기업의 뉴스·공시 검색
 6. 비교 결과와 원인 후보 통합
 
-.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; print(json.dumps(parse_stock_question('삼성SDS  최근 주가 전망?').to_dict(), ensure_ascii=False, indent=2))"
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; print(json.dumps(parse_stock_question('유진로봇 최근 주가 전망?').to_dict(), ensure_ascii=False, indent=2))"
 ```
 
 ### 4-4. Retriever Layer
 - 뉴스 데이터
-  - Embedding Model을 통해 벡터화되어 Vector DB에 저장됨
-  - 유사도 계산(Cosine Similarity 등)을 통해 관련 문서 검색
   - 하이브리드 검색(Hybrid Search) 적용
-  - BM25 알고리즘을 통한 정확한 키워드 일치 검색 + 코사인 유사도(Cosine Similarity)를 활용한 Vector Search
-    - BM25 : "삼성전자", "주가", "인수"
-    - Vector Search : "주가 왜 올랐어?" <-> "매수세 증가", "계약 체결" 연결
+    - BM25 알고리즘을 통한 정확한 키워드 일치 검색(Keyword Search) + 코사인 유사도(Cosine Similarity)를 활용한 FAISS 기반 Vector Search
+    - Keyword Search : 질문의 핵심 키워드가 포함된 뉴스 검색 ("삼성전자", "주가", "상승" 등)
+    - Vector Search : 질문과 의미적으로 유사한 뉴스 검색 ("주가 왜 올랐어?" <-> "매수세 증가", "계약 체결" 연결)
+  - Hybrid Search를 통한 검색 결과 통합 및 재정렬
+    - RRF 알고리즘을 통해 검색 결과 통합 + 상위 Top-K 뉴스를 반환
   - 이후 `공시 문서, 기업 사업보고서` 등의 **텍스트 문서 데이터** 추가 예정
 - 주가 데이터
   - 정형 데이터이므로 벡터 검색이 아닌 거래일 조건 기반 필터링 및 시계열 조회 방식
