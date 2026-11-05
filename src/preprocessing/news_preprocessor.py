@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
@@ -23,7 +23,13 @@ NEGATION_PATTERN = re.compile(r"않|없|못|아니|불가|부인|철회")
 
 
 # raw 기사에서 본문을 우선 사용하고 요약문 대체·정제·메타데이터 표준화·중복 제거 수행
-def preprocess_news(raw_data: dict[str, Any]) -> list[ProcessedNews]:
+def preprocess_news(
+    raw_data: dict[str, Any], *, now: datetime | None = None,
+) -> list[ProcessedNews]:
+    processed_at = now if now is not None else datetime.now(KST)
+    if processed_at.tzinfo is None or processed_at.utcoffset() is None:
+        raise ValueError("Preprocessing time must include a timezone offset.")
+    processed_at = processed_at.astimezone(KST)
     if not isinstance(raw_data, dict) or not isinstance(raw_data.get("collection"), dict):
         raise ValueError("Raw news must include collection metadata.")
     metadata = raw_data["collection"]
@@ -58,7 +64,8 @@ def preprocess_news(raw_data: dict[str, Any]) -> list[ProcessedNews]:
             continue
         urls.add(record.url)
         unique.append(record)
-    return unique
+    prefix = processed_at.strftime("%y%m%d%H%M%S")
+    return [replace(record, news_id=f"{prefix}_{index:02d}") for index, record in enumerate(unique, start=1)]
 
 
 # 기사 한 건을 표준화하고 원문 본문 존재 여부로 중요도 설정
@@ -93,6 +100,8 @@ def _normalize_news_item(
     publisher = next((name for domain, name in NEWS_PUBLISHERS.items()
                       if host == domain or host.endswith("." + domain)), host)
     return ProcessedNews(
+        # ID는 중복 제거 후 현재 전처리 시각 기준으로 부여
+        news_id="",
         stock_name=stock_name, stock_code=stock_code, url=url, title=title,
         content=content, publisher=publisher,
         published_date=published_date.isoformat(), important="O" if has_original_body else "X",
@@ -130,12 +139,14 @@ def _is_similar_news(first: ProcessedNews, second: ProcessedNews) -> bool:
 
 
 # raw 스냅샷 하나를 전처리하고 같은 이름의 processed 스냅샷에 원자적으로 저장
-def preprocess_and_save_news(raw_path: Path, file_path: Path | None = None) -> list[ProcessedNews]:
-    with raw_path.open("r", encoding="utf-8") as file:
-        records = preprocess_news(json.load(file))
+def preprocess_and_save_news(
+    raw_path: Path, file_path: Path | None = None, *, now: datetime | None = None,
+) -> list[ProcessedNews]:
     destination = file_path if file_path is not None else get_processed_news_path(raw_path)
     if destination.resolve() == raw_path.resolve():
         raise ValueError("Processed output must not overwrite raw news.")
+    with raw_path.open("r", encoding="utf-8") as file:
+        records = preprocess_news(json.load(file), now=now)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path: Path | None = None
     try:

@@ -5,6 +5,7 @@ from typing import Literal
 
 @dataclass(frozen=True)
 class ProcessedNews:
+    news_id: str
     stock_name: str
     stock_code: str
     url: str

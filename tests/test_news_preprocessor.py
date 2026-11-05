@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import asdict
+from datetime import datetime
 import json
 
 import pytest
@@ -7,6 +8,17 @@ import pytest
 from src.domain.news_models import ProcessedNews
 from src.preprocessing import news_preprocessor as preprocessor
 from src.preprocessing.text_cleaner import clean_news_text
+
+
+# 실제 현재 시각 대신 고정된 한국 시각으로 초 단위 ID 생성 검증
+@pytest.fixture(autouse=True)
+def preprocessing_clock(monkeypatch):
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromisoformat("2026-11-06T12:30:45+09:00").astimezone(tz)
+
+    monkeypatch.setattr(preprocessor, "datetime", FixedDatetime)
 
 
 # 실제 수집 구조와 같은 모의 raw 스냅샷 제공
@@ -33,8 +45,9 @@ def test_preprocess_news_normalizes_without_mutating_raw(raw_news):
     record = records[0]
     assert isinstance(record, ProcessedNews)
     assert tuple(asdict(record)) == (
-        "stock_name", "stock_code", "url", "title", "content", "important", "publisher", "published_date",
+        "news_id", "stock_name", "stock_code", "url", "title", "content", "important", "publisher", "published_date",
     )
+    assert record.news_id == "261106123045_01"
     assert record.stock_name == "삼성전자"
     assert record.stock_code == "005930"
     assert record.publisher == "한국경제"
@@ -115,6 +128,7 @@ def test_kst_date_and_weekend_in_period(raw_news):
     raw_news["items"][0]["pubDate"] = "Sat, 31 Oct 2026 18:00:00 +0000"
     record = preprocessor.preprocess_news(raw_news)[0]
     assert record.published_date == "2026-11-01"
+    assert record.news_id == "261106123045_01"
     assert record.important == "O"
 
 
@@ -229,3 +243,67 @@ def test_invalid_raw_preserves_output(tmp_path, raw_news, failure):
     with pytest.raises(ValueError):
         preprocessor.preprocess_and_save_news(raw_path, processed_path)
     assert processed_path.read_text(encoding="utf-8") == "existing"
+
+
+# 발행 시각과 관계없이 현재 전처리 시각과 결과 순서대로 ID 부여
+def test_news_ids_use_current_time_and_result_order(raw_news):
+    second = deepcopy(raw_news["items"][0])
+    second["originallink"] = "https://www.hankyung.com/article/2"
+    second["pubDate"] = "Wed, 04 Nov 2026 10:00:30 +0900"
+    second["original_article"]["body"] = "매출은 20조원이다."
+    raw_news["items"].append(second)
+    records = preprocessor.preprocess_news(raw_news)
+    assert [record.news_id for record in records] == ["261106123045_01", "261106123045_02"]
+
+
+# 중복 제거된 기사는 순번에서 제외
+def test_duplicate_news_does_not_consume_an_id(raw_news):
+    raw_news["items"].append(deepcopy(raw_news["items"][0]))
+    records = preprocessor.preprocess_news(raw_news)
+    assert len(records) == 1
+    assert records[0].news_id == "261106123045_01"
+
+
+# 같은 URL을 다시 전처리해도 이전 ID를 조회하지 않고 현재 시각으로 새로 부여
+def test_reprocessing_uses_new_current_time_without_extra_files(tmp_path, raw_news):
+    raw_path = tmp_path / "raw.json"
+    raw_path.write_text(json.dumps(raw_news), encoding="utf-8")
+    first = preprocessor.preprocess_and_save_news(raw_path, tmp_path / "first.json")[0]
+    repeated = preprocessor.preprocess_and_save_news(
+        raw_path, tmp_path / "second.json", now=datetime.fromisoformat("2026-11-07T15:00:00+09:00"),
+    )[0]
+    assert first.news_id == "261106123045_01"
+    assert repeated.news_id == "261107150000_01"
+    assert {path.name for path in tmp_path.iterdir()} == {"raw.json", "first.json", "second.json"}
+
+
+# 한 번에 99건을 넘어도 순번을 잘라 중복시키지 않음
+def test_news_id_sequence_can_exceed_two_digits(raw_news):
+    template = raw_news["items"][0]
+    raw_news["items"] = []
+    for index in range(101):
+        item = deepcopy(template)
+        item["originallink"] = f"https://www.hankyung.com/article/{index}"
+        item["original_article"]["body"] = f"매출은 {index}조원이다."
+        raw_news["items"].append(item)
+    ids = {record.news_id for record in preprocessor.preprocess_news(raw_news)}
+    assert len(ids) == 101
+    assert "261106123045_100" in ids
+
+
+# UTC 시각을 한국 시각으로 변환하며 실행마다 순번을 01부터 시작
+def test_current_time_is_converted_to_kst(raw_news):
+    first = preprocessor.preprocess_news(
+        raw_news, now=datetime.fromisoformat("2026-11-06T03:30:45+00:00"),
+    )[0]
+    second = preprocessor.preprocess_news(
+        raw_news, now=datetime.fromisoformat("2026-11-06T03:30:46+00:00"),
+    )[0]
+    assert first.news_id == "261106123045_01"
+    assert second.news_id == "261106123046_01"
+
+
+# 타임존이 없는 전처리 시각은 시스템 시간대에 의존하지 않고 거부
+def test_preprocessing_clock_requires_timezone(raw_news):
+    with pytest.raises(ValueError, match="timezone"):
+        preprocessor.preprocess_news(raw_news, now=datetime(2026, 11, 6, 12, 30, 45))
