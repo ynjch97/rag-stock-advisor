@@ -139,3 +139,14 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   - `OPENAI_REASONING` 값을 기본값에서 `minimal` 로 변경
   - OpenAI 호출 시도 횟수 확인을 위해 `openai_call_attempts` 값 추가
     - 추후 문제 발생 시 확인을 위함 (현재는 1회 실행)
+
+### 5. 뉴스 데이터 수집/전처리
+
+#### 모델 정의
+- `news_models.py`
+
+#### Data Collector
+- `news_collector.py`
+  - `NEWS_PUBLISHERS` 에 해당하는 언론사이면 뉴스 원문 추출
+    - 전처리 및 청킹 시 `original_article.body` 값 사용 + 우선으로 분석에 활용함
+    - `description` 값으로 대체하는 경우 : 이외의 언론사(`unsupported_publisher`), 설정한 기간을 벗어난(`outside_period`) 데이터 등

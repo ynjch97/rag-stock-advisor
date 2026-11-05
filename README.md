@@ -124,6 +124,26 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
 ### 2-3. 뉴스 데이터
 - JSON 필드 구조 (raw 데이터 기준)
 ``` json
+{
+  # 네이버 API 응답 결과 json + 원문 조회 결과 필드 추가
+  "title": "네이버 뉴스 API 제목",
+  "originallink": "https://www.mt.co.kr/...",
+  "link": "https://n.news.naver.com/mnews/article/...",
+  "description": "네이버 뉴스 API 요약 결과",
+  "pubDate": "Thu, 05 Nov 2026 20:30:00 +0900",
+  "original_article": {
+    "url": "https://www.mt.co.kr/...",
+    "publisher": "머니투데이",
+    "status": "success",
+    "html": "뉴스 HTML 전체",
+    "body": "뉴스 본문 전체",
+    "error": null,
+    "final_url": "https://www.mt.co.kr/..."
+  }
+},
+```
+- JSON 필드 구조 (processed 데이터 기준)
+``` json
 [
   {
     "stock_name": "삼성전자",                                    # 종목명
@@ -324,7 +344,9 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 - 네이버 뉴스 API
   - https://developers.naver.com/docs/serviceapi/search/news/news.md
   - 수집 방식 : 뉴스 API JSON 타입으로 수집
-- 경제/금융 뉴스 위주의 수집 (한국경제, 매일경제, 서울경제, 이데일리, 연합뉴스, 머니투데이)
+  - 파라미터 : `sort=date, display=30, start=1`
+- 사용자 질의의 종목·기간 조건으로 검색 범위를 제한
+- 경제/금융 뉴스 위주의 수집 (한국경제, 매일경제, 서울경제, 이데일리, 연합뉴스, 머니투데이 등)
 - 기업 실적/공시, 증시 동향, 금리/환율, 정부 정책, 산업별 이슈, 글로벌 경제 동향, 애널리스트 전망 등 주가에 영향을 미치는 뉴스로 구성
 - 수집 데이터 : 기사 URL, 제목, 본문, 발행일
 
@@ -398,6 +420,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
     - Vector Search : 질문과 의미적으로 유사한 뉴스 검색 ("주가 왜 올랐어?" <-> "매수세 증가", "계약 체결" 연결)
   - Hybrid Search를 통한 검색 결과 통합 및 재정렬
     - RRF 알고리즘을 통해 검색 결과 통합 + 상위 Top-K 뉴스를 반환
+  - 최신 30건 데이터 조회 이후 Agent 판단에 따라 추가 조회 (`start=31`)
   - 이후 `공시 문서, 기업 사업보고서` 등의 **텍스트 문서 데이터** 추가 예정
 - 주가 데이터
   - 정형 데이터이므로 벡터 검색이 아닌 거래일 조건 기반 필터링 및 시계열 조회 방식

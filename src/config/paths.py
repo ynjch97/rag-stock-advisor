@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 
 # Project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +53,11 @@ def get_raw_price_path(stock_code: str) -> Path:
 
 def get_processed_price_trend_path(stock_code: str) -> Path:
     return PROCESSED_PRICES_DIR / f"{stock_code}_trend.json"
+
+
+# News collection snapshots
+def get_raw_news_path(stock_code: str, collected_at: datetime) -> Path:
+    return RAW_NEWS_DIR / f"{stock_code}_news_{collected_at:%Y%m%d_%H%M%S_%f}.json"
 
 
 # Chunked document file paths

@@ -50,6 +50,7 @@ src/
     stock_token_manager.py          # 주가 데이터 수집용 토큰 발급 및 캐시 구현
     stock_collector.py              # 주가 데이터 수집 및 저장
     stock_reference_collector.py    # 전체 종목 수집 및 매핑 파일 저장·갱신
+    news_collector.py               # 뉴스 데이터 수집 및 저장
 
   preprocessing/
     __init__.py
