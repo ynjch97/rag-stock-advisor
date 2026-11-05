@@ -18,9 +18,14 @@ data/
     
   raw/
     prices/                         # 수집한 원본 주가 데이터
+    news/                           # 수집한 원본 뉴스 데이터
 
   processed/
     prices/                         # 전처리된 주가 데이터
+    news/                           # 전처리된 뉴스 데이터
+
+  chunks/
+    news/                           # 청킹된 뉴스 데이터
 
 src/
   __init__.py
@@ -58,6 +63,10 @@ src/
     stock_preprocessor.py           # 주가 데이터 전처리 및 저장
     news_preprocessor.py            # 뉴스 데이터 전처리 및 저장
     text_cleaner.py                 # 뉴스 데이터 본문/요약본 텍스트 정제
+
+  chunking/
+    __init__.py
+    document_chunker.py             # 문서 청킹
 
   parsers/
     __init__.py
@@ -137,6 +146,9 @@ data/
     faiss/
       stock_advisor.index            # FAISS 벡터 인덱스 파일
       stock_advisor_metadata.json    # FAISS 벡터와 원문 청크 매핑 메타데이터
+  
+  bm25/
+    stock_advisor_tokens.json        # 동일 청크 목록의 ID, 토큰, BM25 설정
 
 src/
   __init__.py
@@ -187,14 +199,15 @@ src/
 
   embeddings/
     __init__.py
-    embedding_service.py             # 텍스트 임베딩 생성
+    embedding_service.py             # 텍스트를 임베딩하고 벡터로 변환 (for FAISS)
     embedding_model_client.py        # OpenAI/로컬 임베딩 모델 클라이언트
 
-  vector_db/
+  indexing/
     __init__.py
-    vector_store_client.py           # Vector DB 공통 인터페이스
-    faiss_vector_store.py            # FAISS 인덱스 생성, 저장, 로드, 검색
-    vector_indexer.py                # 청크 문서 임베딩 후 FAISS에 저장
+    news_indexer.py                  # 청킹 파일 로딩·파일 간 중복 정리·최신 기사 선택
+                                     # 동일한 청크 목록으로 임베딩·FAISS·BM25 구축 및 저장을 조립
+    faiss_index.py                   # 벡터 정규화, FAISS 인덱스 생성·저장·로드
+    bm25_index.py                    # Kiwi 공통 토큰화, BM25 인덱스 생성·저장·로드
 
   search/
     __init__.py

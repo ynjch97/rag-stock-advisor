@@ -18,8 +18,10 @@ LLM 응답 ("지금 매수는 신중, 이유는…")
 ```
 
 ### 1-2. 기술 스택
-- 언어 : Python
-- 개발환경 : VS Code
+- 언어 : `Python`
+- 개발환경 : `VS Code`
+- 사용자 질의 분석 LLM : `OpenAI gpt-5-mini`
+- 데이터 청킹 : `LangChain RecursiveCharacterTextSplitter`
 
 ### 1-3. 개발 환경 구축
 - 가상환경(.venv) 만들기 : `python -m venv .venv`

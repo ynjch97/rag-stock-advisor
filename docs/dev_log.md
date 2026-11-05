@@ -150,3 +150,13 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   - `NEWS_PUBLISHERS` 에 해당하는 언론사이면 뉴스 원문 추출
     - 전처리 및 청킹 시 `original_article.body` 값 사용 + 우선으로 분석에 활용함
     - `description` 값으로 대체하는 경우 : 이외의 언론사(`unsupported_publisher`), 설정한 기간을 벗어난(`outside_period`) 데이터 등
+
+#### Data Preprocessing
+- `news_preprocessor.py`
+  - `NEWS_PUBLISHERS` 에 해당하는 언론사이면 중요도 `O`
+
+#### Data Chunking
+- `document_chunker.py`
+  - 추후 공시 문서, 기업 사업보고서 등에도 사용 예정
+
+#### Data Embedding
