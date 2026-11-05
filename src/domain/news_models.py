@@ -14,3 +14,19 @@ class ProcessedNews:
     important: Literal["O", "X"]
     publisher: str
     published_date: str
+
+@dataclass(frozen=True)
+class NewsChunk:
+    chunk_id: str
+    news_id: str
+    chunk_index: int
+    chunk_count: int
+    start_index: int
+    stock_name: str
+    stock_code: str
+    url: str
+    title: str
+    content: str
+    important: Literal["O", "X"]
+    publisher: str
+    published_date: str

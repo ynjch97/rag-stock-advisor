@@ -66,8 +66,8 @@ def get_processed_news_path(raw_path: Path) -> Path:
 
 
 # Chunked document file paths
-def get_news_chunks_path(stock_code: str) -> Path:
-    return NEWS_CHUNKS_DIR / f"{stock_code}_news_chunks.json"
+def get_news_chunks_path(processed_path: Path) -> Path:
+    return NEWS_CHUNKS_DIR / f"{processed_path.stem}_chunks.json"
 
 
 def get_reports_chunks_path(stock_code: str) -> Path:
