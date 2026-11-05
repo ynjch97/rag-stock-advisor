@@ -150,8 +150,9 @@ AI가 자연어로 간단 분석 응답 (stock_advice_service.py)
     "stock_code": "005930",                                     # 종목코드
     "url": "https://www.fnnews.com/news/202611030838053580",    # 뉴스 URL
     "title": "삼성전자 반도체 업황 회복 기대",                      # 뉴스 제목
-    "summary": "메모리 반도체 가격 회복 가능성이 제기되고 있습니다.",  # 뉴스 요약
-    "sentiment": "positive",                                    # 뉴스 감성: positive / neutral / negative
+    "content": "메모리 반도체 가격 회복 가능성이 제기되고 있습니다.",  # 뉴스 원문or요약
+    "important": "O",                                           # 뉴스 중요도 (원문 유무에 따라 O/X)
+    "publisher": "mt.co.kr",                                    # 뉴스 발행사
     "published_date": "2026-07-07"                              # 뉴스 발행일
   }
 ]
@@ -357,6 +358,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - 기업명, 금융 수치, 부정 표현 등 의미 분석에 필요한 정보는 보존
 - 메타데이터 표준화: 언론사, 날짜, 종목 코드 표준화
 - 뉴스 URL 기준으로 중복 기사 제거 + 유사 기사 필터링(제목/본문 유사도 및 발행일 기준)
+- `important` : 뉴스 중요도 (설정 기간 내 경제/금융 뉴스를 우선함)
 
 #### 3-3-2. 뉴스 데이터 청킹
 - 데이터 수집/갱신 시 수행
@@ -421,6 +423,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - Hybrid Search를 통한 검색 결과 통합 및 재정렬
     - RRF 알고리즘을 통해 검색 결과 통합 + 상위 Top-K 뉴스를 반환
   - 최신 30건 데이터 조회 이후 Agent 판단에 따라 추가 조회 (`start=31`)
+    - 데이터가 충분한 경우(5분 뒤 동일 질문), 수집 절차는 생략함
   - 이후 `공시 문서, 기업 사업보고서` 등의 **텍스트 문서 데이터** 추가 예정
 - 주가 데이터
   - 정형 데이터이므로 벡터 검색이 아닌 거래일 조건 기반 필터링 및 시계열 조회 방식
@@ -435,6 +438,8 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 - 구성된 컨텍스트를 기반으로 뉴스와 주가 간의 관계를 분석하고 자연어 응답을 생성
 - 단순 요약이 아닌 원인(뉴스/공시/리포트 등) → 결과(주가) 구조
 - 원본 검색 데이터와 대조하는 검증 절차를 포함해 Hallucination을 최소화하고 신뢰성을 확보
+- 뉴스
+  - 감성 분석(positive/neutral/negative) 실시 -> 사용자 판단에 도움이 되는 지표 생성
 
 <!--
 ```

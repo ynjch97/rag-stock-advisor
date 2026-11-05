@@ -37,6 +37,7 @@ src/
   domain/
     __init__.py
     stock_models.py                 # 주가 데이터 구조
+    news_models.py                  # 뉴스 데이터 구조
     advice_models.py                # 질문 분석 구조
 
   data_loaders/
@@ -55,6 +56,8 @@ src/
   preprocessing/
     __init__.py
     stock_preprocessor.py           # 주가 데이터 전처리 및 저장
+    news_preprocessor.py            # 뉴스 데이터 전처리 및 저장
+    text_cleaner.py                 # 뉴스 데이터 본문/요약본 텍스트 정제
 
   parsers/
     __init__.py

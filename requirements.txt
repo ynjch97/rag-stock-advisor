@@ -23,3 +23,4 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 trafilatura==2.3.1
 lxml_html_clean==0.4.6
+lxml==6.1.3

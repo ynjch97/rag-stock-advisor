@@ -14,7 +14,8 @@ from src.config.settings import settings
 # 실제 인증정보·외부 통신 없이 수집 요청을 실행하는 설정 제공
 @pytest.fixture
 def config():
-    return replace(settings, news_api_provider="naver", news_api_key="test-client-id",
+    return replace(settings, openai_api_key=None, stock_api_key=None, stock_api_secret=None,
+                   news_api_provider="naver", news_api_key="test-client-id",
                    news_api_secret="test-client-secret")
 
 
@@ -49,7 +50,7 @@ def test_collect_preserves_api_response_and_adds_original(tmp_path, config, payl
     def respond(request):
         requests.append(request)
         if request.url.host == "openapi.naver.com":
-            assert dict(request.url.params) == {"query": "삼성전자", "sort": "date", "display": "10", "start": "1"}
+            assert dict(request.url.params) == {"query": "삼성전자", "sort": "date", "display": "30", "start": "1"}
             assert request.headers["X-Naver-Client-Id"] == "test-client-id"
             assert request.headers["X-Naver-Client-Secret"] == "test-client-secret"
             return httpx.Response(200, json=payload)

@@ -4,7 +4,6 @@
     "stock_code": "005930",
     "title": "삼성전자 반도체 업황 회복 기대",
     "summary": "메모리 반도체 가격 회복 가능성이 제기되고 있습니다.",
-    "sentiment": "positive",
     "published_date": "2026-07-07"
   },
   {
@@ -12,7 +11,6 @@
     "stock_code": "005930",
     "title": "삼성전자 단기 수급 부담 지속",
     "summary": "외국인 매도세와 단기 변동성 확대가 주가 부담 요인으로 거론되고 있습니다.",
-    "sentiment": "negative",
     "published_date": "2026-07-07"
   },
   {
@@ -20,7 +18,6 @@
     "stock_code": "000660",
     "title": "SK하이닉스 HBM 수요 확대 기대",
     "summary": "AI 서버용 고대역폭 메모리 수요 증가가 실적 개선 기대를 높이고 있습니다.",
-    "sentiment": "positive",
     "published_date": "2026-07-07"
   },
   {
@@ -28,7 +25,6 @@
     "stock_code": "000660",
     "title": "SK하이닉스 단기 차익 실현 매물 출회",
     "summary": "최근 주가 상승 이후 단기 차익 실현 매물이 나오며 변동성이 커지고 있습니다.",
-    "sentiment": "negative",
     "published_date": "2026-07-08"
   },
   {
@@ -36,7 +32,6 @@
     "stock_code": "352820",
     "title": "하이브 신인 아티스트 성장 기대",
     "summary": "신인 그룹 성과와 글로벌 팬덤 확대가 중장기 성장 요인으로 평가됩니다.",
-    "sentiment": "positive",
     "published_date": "2026-07-07"
   },
   {
@@ -44,7 +39,6 @@
     "stock_code": "352820",
     "title": "하이브 엔터 업종 투자심리 둔화",
     "summary": "엔터 업종 전반의 밸류에이션 부담과 단기 실적 우려가 투자심리를 제한하고 있습니다.",
-    "sentiment": "negative",
     "published_date": "2026-07-08"
   },
   {
@@ -52,7 +46,6 @@
     "stock_code": "035900",
     "title": "JYP Ent 해외 투어 매출 기대",
     "summary": "주요 아티스트의 해외 투어 일정이 매출 성장 기대를 높이고 있습니다.",
-    "sentiment": "positive",
     "published_date": "2026-07-07"
   },
   {
@@ -60,7 +53,6 @@
     "stock_code": "035900",
     "title": "JYP Ent 앨범 판매 둔화 우려",
     "summary": "일부 아티스트의 앨범 판매 성장세 둔화 가능성이 단기 부담 요인으로 언급됩니다.",
-    "sentiment": "negative",
     "published_date": "2026-07-08"
   }
 ]

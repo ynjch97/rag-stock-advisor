@@ -60,6 +60,11 @@ def get_raw_news_path(stock_code: str, collected_at: datetime) -> Path:
     return RAW_NEWS_DIR / f"{stock_code}_news_{collected_at:%Y%m%d_%H%M%S_%f}.json"
 
 
+# Processed news snapshot corresponding to a raw collection
+def get_processed_news_path(raw_path: Path) -> Path:
+    return PROCESSED_NEWS_DIR / raw_path.name
+
+
 # Chunked document file paths
 def get_news_chunks_path(stock_code: str) -> Path:
     return NEWS_CHUNKS_DIR / f"{stock_code}_news_chunks.json"

@@ -21,13 +21,11 @@ def test_build_stock_context_combines_question_stock_and_news():
             {
                 "title": "긍정 뉴스",
                 "summary": "긍정 요약",
-                "sentiment": "positive",
                 "published_date": "2026-07-07",
             },
             {
                 "title": "부정 뉴스",
                 "summary": "부정 요약",
-                "sentiment": "negative",
                 "published_date": "2026-07-07",
             },
         ],
@@ -36,8 +34,5 @@ def test_build_stock_context_combines_question_stock_and_news():
     assert context["question"]["intent"] == "buy_opinion"
     assert context["stock"]["stock_code"] == "005930"
     assert len(context["news"]) == 2
-    assert context["summary"] == {
-        "positive_news_count": 1,
-        "neutral_news_count": 0,
-        "negative_news_count": 1,
-    }
+    assert context["summary"] == {"news_count": 2}
+    assert all("sentiment" not in news for news in context["news"])
