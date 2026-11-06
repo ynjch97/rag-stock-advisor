@@ -10,7 +10,7 @@ from src.config.paths import PROJECT_ROOT
 ENV_PATH = PROJECT_ROOT / ".env"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Settings:
     app_env: str
     app_name: str

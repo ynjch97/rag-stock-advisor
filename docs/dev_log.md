@@ -160,3 +160,25 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   - 추후 공시 문서, 기업 사업보고서 등에도 사용 예정
 
 #### Data Embedding
+- `embedding_service.py`
+  - `종목명 + 기사 제목 + 청크 content`를 입력 텍스트로 구성
+  - 텍스트 임베딩 요청, 결과 검증
+- `embedding_model_client.py`
+  - OpenAI 임베딩 API를 호출하여 벡터를 받는 단계
+  - `text-embedding-3-small`
+
+#### Data Indexing
+- `bm25_index.py`
+  - 텍스트를 Kiwi로 토큰화, BM25 구성하는 단계
+- `faiss_index.py`
+  - 벡터 정규화 후 FAISS 인덱스 구성하는 단계
+- `news_indexer.py`
+  - 청킹 파일 전체 로딩 -> 동일 `(종목코드, URL)` 기사의 최신 파일 속 청크 선택 -> 전체 인덱싱 조립
+- 테스트 > `data/chunks/news/` 의 청킹 파일을 읽어 임베딩/FAISS/BM25 저장
+    - `rebuilt` : True 면 새로 구축, False 면 기존 인덱스를 재사용한 것
+    - `chunk_count` : 중복 정리 후 인덱싱한 청크 개수
+    - `dimension` : 임베딩 벡터 차원 수
+    - `faiss_path`, `bm25_path` : 실제 저장 위치
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "from src.indexing.news_indexer import index_news; print(index_news())"
+```

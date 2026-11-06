@@ -22,6 +22,10 @@ LLM 응답 ("지금 매수는 신중, 이유는…")
 - 개발환경 : `VS Code`
 - 사용자 질의 분석 LLM : `OpenAI gpt-5-mini`
 - 데이터 청킹 : `LangChain RecursiveCharacterTextSplitter`
+- 텍스트 임베딩 : `OpenAI text-embedding-3-small`
+- 벡터 인덱싱, 유사도 검색 : `FAISS`
+- 한국어 형태소 분석·토큰화 : `Kiwi`
+- 키워드 검색 : `BM25`
 
 ### 1-3. 개발 환경 구축
 - 가상환경(.venv) 만들기 : `python -m venv .venv`
@@ -378,9 +382,10 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 - FAISS
   - 임베딩(텍스트 → 벡터 변환) > 임베딩 벡터 > FAISS 인덱싱 > Vector Search (의미 기반)
   - Embedding Model을 통해 벡터화되어 Vector DB에 저장됨
+    - `text-embedding-3-small` : 비용이 저렴하면서도 검색 정확도가 높음, FAISS 연산 부담이 무난한 범용 RAG 용도
 - BM25
   - 텍스트 토큰화(키워드 처리) > BM25 인덱싱 > Keyword Search (키워드 기반)
-  - 한국어 형태소 분석기(Kiwi 등)를 이용하여 뉴스 텍스트 토큰화
+  - 한국어 형태소 분석기(`Kiwi` 등)를 이용하여 뉴스 텍스트 토큰화
 
 ## 4. 시스템 아키텍처
 

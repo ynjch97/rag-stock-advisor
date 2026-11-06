@@ -45,6 +45,10 @@ FAISS_VECTOR_STORE_DIR = VECTOR_STORE_DIR / "faiss"
 FAISS_INDEX_PATH = FAISS_VECTOR_STORE_DIR / "stock_advisor.index"
 FAISS_METADATA_PATH = FAISS_VECTOR_STORE_DIR / "stock_advisor_metadata.json"
 
+# BM25 token corpus
+BM25_INDEX_DIR = DATA_DIR / "bm25"
+BM25_TOKENS_PATH = BM25_INDEX_DIR / "stock_advisor_tokens.json"
+
 
 # Stock price file paths
 def get_raw_price_path(stock_code: str) -> Path:
