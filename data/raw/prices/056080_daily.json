@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-02",
+    "open": 9500,
+    "high": 9730,
+    "low": 9420,
+    "close": 9540,
+    "volume": 146335,
+    "change_rate": -0.52,
+    "change_price": -50
+  },
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-03",
+    "open": 9400,
+    "high": 9400,
+    "low": 8850,
+    "close": 8970,
+    "volume": 250756,
+    "change_rate": -5.97,
+    "change_price": -570
+  },
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-04",
+    "open": 9150,
+    "high": 9230,
+    "low": 8530,
+    "close": 8990,
+    "volume": 284802,
+    "change_rate": 0.22,
+    "change_price": 20
+  },
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-05",
+    "open": 8990,
+    "high": 9110,
+    "low": 8410,
+    "close": 8500,
+    "volume": 252727,
+    "change_rate": -5.45,
+    "change_price": -490
+  },
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-06",
+    "open": 7950,
+    "high": 8470,
+    "low": 7790,
+    "close": 8330,
+    "volume": 250516,
+    "change_rate": -2.0,
+    "change_price": -170
+  }
+]

@@ -91,6 +91,9 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
   - 조회·전처리 호출 추가
   - `STOCK_API_PROVIDER=toss`로 설정하여 실제 조회 사용하도록 함
   - RealtimeStock, DailyStock, StockTrend 를 기존 컨텍스트와 응답 생성 모듈에 전달
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "from src.app.stock_advice_workflow import run_stock_advice_workflow; print(run_stock_advice_workflow('삼성전자 최근 5거래일 분석해줘'))"
+```
 
 #### 테스트
 - 휴장일, 장 시작 직전, 장중, 장 종료 시각 이후 등의 시점별 테스트 필요
@@ -154,10 +157,16 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 #### Data Preprocessing
 - `news_preprocessor.py`
   - `NEWS_PUBLISHERS` 에 해당하는 언론사이면 중요도 `O`
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "from datetime import datetime; from src.collectors.news_collector import collect_and_save_news; from src.preprocessing.news_preprocessor import preprocess_and_save_news; from src.config.paths import get_raw_news_path; data = collect_and_save_news('레인보우로보틱스', '277810', '2026-11-02', '2026-11-09'); path = get_raw_news_path(data['collection']['stock_code'], datetime.fromisoformat(data['collection']['collected_at'])); print('전처리 기사 수:', len(preprocess_and_save_news(path)))"
+```
 
 #### Data Chunking
 - `document_chunker.py`
   - 추후 공시 문서, 기업 사업보고서 등에도 사용 예정
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "from src.config.paths import PROCESSED_NEWS_DIR; from src.chunking.document_chunker import chunk_and_save_news; path = max(PROCESSED_NEWS_DIR.glob('*.json'), key=lambda p: p.stat().st_mtime_ns); print('대상:', path.name); print('청크 수:', len(chunk_and_save_news(path)))"
+```
 
 #### Data Embedding
 - `embedding_service.py`

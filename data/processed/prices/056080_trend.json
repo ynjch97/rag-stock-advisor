@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "유진로봇",
+    "stock_code": "056080",
+    "base_date": "2026-11-06",
+    "recent_days": 5,
+    "recent_change_rate": -12.68,
+    "up_days": 1,
+    "down_days": 4,
+    "trend": "최근 5거래일 하락"
+  }
+]
