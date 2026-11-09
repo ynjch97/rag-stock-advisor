@@ -10,6 +10,7 @@ from src.config.settings import settings
 from src.domain.news_models import NewsChunk
 from src.indexing.faiss_index import build_faiss_index, save_faiss_index
 from src.search.vector_search import search_news_vectors
+from src.search import vector_search
 
 
 # 실제 FAISS와 메타데이터를 만들고 OpenAI 응답은 대역으로 제공
@@ -132,3 +133,28 @@ def test_missing_index_does_not_call_embedding(search_environment, tmp_path):
     with pytest.raises(FileNotFoundError):
         search_news_vectors("실적", **kwargs)
     kwargs["client"].embeddings.create.assert_not_called()
+
+
+# 검색 전체를 지정 횟수만큼 호출하고 밀리초 기준 p50·p95를 출력
+def test_benchmark_response_time(monkeypatch, capsys):
+    search = Mock(return_value=[])
+    monkeypatch.setattr(vector_search, "search_news_vectors", search)
+    timestamps = iter([0, 0.1, 1, 1.2, 2, 2.3])
+    monkeypatch.setattr(vector_search.time, "perf_counter", lambda: next(timestamps))
+    result = vector_search.benchmark_news_vector_search("실적", repeats=3, top_k=2)
+    assert result["p50_ms"] == pytest.approx(200)
+    assert result["p95_ms"] == pytest.approx(290)
+    assert result["repeats"] == 3
+    assert search.call_count == 3
+    search.assert_called_with("실적", top_k=2)
+    assert "p50 : 200.000 ms, p95 : 290.000 ms (n=3)" in capsys.readouterr().out
+
+
+# 반복 횟수가 잘못되면 검색·API 호출 전에 거부
+@pytest.mark.parametrize("repeats", [0, -1, True, 1.5])
+def test_benchmark_invalid_repeat_count(monkeypatch, repeats):
+    search = Mock()
+    monkeypatch.setattr(vector_search, "search_news_vectors", search)
+    with pytest.raises(ValueError):
+        vector_search.benchmark_news_vector_search("실적", repeats=repeats)
+    search.assert_not_called()

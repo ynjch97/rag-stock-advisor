@@ -191,3 +191,45 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 ``` bash
 .\.venv\Scripts\python.exe -X utf8 -c "from src.indexing.news_indexer import index_news; print(index_news())"
 ```
+
+### 6. 뉴스 데이터 검색
+
+#### Vector Search
+- 유사도 계산 기준
+  - `normalize_L2()` 후 내적 (즉, 코사인 유사도)
+``` python
+# IP(내적) : 정규화된 벡터는 코사인 유사도와 동일
+# Flat : 검색할 때 모든 저장 벡터와 비교
+index = faiss.IndexFlatIP(matrix.shape[1])
+```
+- 테스트하여 결과 확인 
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.search.vector_search import search_news_vectors; print(json.dumps(search_news_vectors('삼성전자 주가 상승 이유', stock_code='005930', top_k=3), ensure_ascii=False, indent=2))"
+
+[{
+    "title": "미 민주 ‘데이터센터 규제 강화’ 기조…한국 반도체 ‘숨 고르기’",
+    (중략)
+    "important": "X",
+    "score": 0.6327694654464722
+}]
+```
+- 인덱스 검색 방식
+  - `Flat`(전체 탐색), `IVF`(군집 탐색), `HNSW`(그래프 탐색) 비교 -> **큰 차이가 없으므로 간단한 `Flat` 사용**
+  - `p50`, `p95` 로 시스템 응답 시간(지연 시간, Latency) 파악
+    - 일반적인 검색 지연, 느린 쪽 검색 지연
+``` bash
+# 세 가지 방식으로 인덱스 생성
+.\.venv\Scripts\python.exe -X utf8 -c "from src.indexing.news_indexer import index_news; print(index_news())"
+
+# 동일한 질문 입력 후 응답 시간 측정
+.\.venv\Scripts\python.exe -X utf8 -c "from src.search.vector_search import benchmark_news_vector_search; benchmark_news_vector_search('삼성전자 주가 상승 이유', repeats=20, top_k=5)"
+.\.venv\Scripts\python.exe -X utf8 -c "from src.search.vector_search import benchmark_news_vector_search; benchmark_news_vector_search('SK하이닉스 주가', repeats=20, top_k=5)" 
+
+# 결과
+p50 : 164.690 ms, p95 : 271.903 ms (n=20) # Flat 질문1 (score 0.6327694654464722)
+p50 : 193.894 ms, p95 : 347.012 ms (n=20) # Flat 질문2
+p50 : 167.203 ms, p95 : 352.322 ms (n=20) # IVF 질문1 (score 0.6327207684516907)
+p50 : 179.951 ms, p95 : 273.222 ms (n=20) # IVF 질문2
+p50 : 166.016 ms, p95 : 238.213 ms (n=20) # HNSW 질문1 (score 0.6327528953552246)
+p50 : 196.943 ms, p95 : 278.423 ms (n=20) # HNSW 질문2
+```

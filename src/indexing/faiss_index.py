@@ -14,7 +14,27 @@ def build_faiss_index(vectors: np.ndarray) -> faiss.Index:
         raise ValueError("FAISS requires a nonempty finite matrix without zero vectors.")
     matrix /= norms[:, None]
     faiss.normalize_L2(matrix)
+
+    # 아래 세 블록 중 하나만 활성화 (인덱스 검색 방식 선택)
+    # 전체 탐색 + 내적 (기본값)
     index = faiss.IndexFlatIP(matrix.shape[1])
+
+    # 군집 탐색 + 내적 : 군집 수는 소규모 테스트용이며 실제 규모에 맞춰 조정
+    # nlist = max(1, min(16, len(matrix) // 40))
+    # index = faiss.IndexIVFFlat(
+    #     faiss.IndexFlatIP(matrix.shape[1]), matrix.shape[1], nlist, faiss.METRIC_INNER_PRODUCT,
+    # )
+    # index.nprobe = min(4, nlist)  # 검색 시 탐색할 군집 수
+
+    # 그래프 탐색 + 내적 : M=16은 노드당 연결 수 설정
+    # index = faiss.IndexHNSWFlat(matrix.shape[1], 16, faiss.METRIC_INNER_PRODUCT)
+    # index.hnsw.efConstruction = 100  # 구축 시 탐색량
+    # index.hnsw.efSearch = 32  # 검색 시 탐색량
+
+    # IVF는 벡터 추가 전에 군집 학습 필요 (Flat·HNSW는 학습 없이 진행)
+    if not index.is_trained:
+        index.train(matrix)
+
     index.add(matrix)
     return index
 

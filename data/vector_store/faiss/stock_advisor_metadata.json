@@ -1206,6 +1206,6 @@
       "published_date": "2026-11-09"
     }
   ],
-  "faiss_sha256": "6ef8ecde7353f305d6d4b8ffb1b2666987243df8ce2d704ee4fc3bffca347429",
+  "faiss_sha256": "a95de6960e941981315cd396ade863645a9414c2ded8dfccc5e7cdb03d58c626",
   "bm25_sha256": "3eab9af37bc3db783d0f428c61a035cec44fc0c26dcc3cf49150713ce569bb3e"
 }

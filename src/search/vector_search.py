@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import time
 
 import faiss
 import numpy as np
@@ -111,3 +112,19 @@ def search_news_vectors(
         if len(results) == top_k:
             break
     return results
+
+
+# 로딩·검증·질문 임베딩 API·FAISS·결과 구성을 포함한 검색 함수 응답 시간 반복 측정 (for 성능 테스트)
+def benchmark_news_vector_search(question: str, *, repeats: int = 10, **search_options) -> dict:
+    if type(repeats) is not int or repeats < 1:
+        raise ValueError("repeats must be a positive integer.")
+    durations = []
+    for _ in range(repeats):
+        start = time.perf_counter()
+        search_news_vectors(question, **search_options)
+        durations.append((time.perf_counter() - start) * 1000)
+    # p50은 중앙값, p95는 측정값의 95백분위수이며 단위는 밀리초
+    p50 = float(np.percentile(durations, 50))
+    p95 = float(np.percentile(durations, 95))
+    print(f"p50 : {p50:.3f} ms, p95 : {p95:.3f} ms (n={repeats})")
+    return {"p50_ms": p50, "p95_ms": p95, "repeats": repeats}
