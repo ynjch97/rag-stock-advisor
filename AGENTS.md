@@ -88,6 +88,10 @@ src/
     faiss_index.py                   # 벡터 정규화, FAISS 인덱스 생성·저장·로드
     bm25_index.py                    # Kiwi 공통 토큰화, BM25 인덱스 생성·저장·로드
 
+  search/
+    __init__.py
+    vector_search.py                 # FAISS 벡터 유사도 검색
+
   parsers/
     __init__.py
     llm_question_analyzer.py        # 사용자 질문을 OpenAI LLM 으로 분석/구조화
