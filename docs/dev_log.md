@@ -233,3 +233,11 @@ p50 : 179.951 ms, p95 : 273.222 ms (n=20) # IVF 질문2
 p50 : 166.016 ms, p95 : 238.213 ms (n=20) # HNSW 질문1 (score 0.6327528953552246)
 p50 : 196.943 ms, p95 : 278.423 ms (n=20) # HNSW 질문2
 ```
+
+#### Keyword Search
+- 사용자 질문 -> Kiwi로 토큰화(단어·형태소 분리) -> BM25 검색 -> 청크 정보 및 score 반환
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.search.keyword_search import search_news_keywords; print(json.dumps(search_news_keywords('삼성전자 반도체 실적', stock_code='005930', top_k=3), ensure_ascii=False, indent=2))"
+
+BM25 score 3.669292259886812
+```

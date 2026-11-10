@@ -442,6 +442,9 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - 인덱스 검색 방식 타입별 응답 시간 테스트 결과 -> `Flat` 사용
 
 #### 4-4-2. Keyword Search
+- `Kiwi` : 한국어 문장을 형태소 단위로 나누는 분석기
+  - 입력 : "삼성전자 실적이 증가했다"
+  - 분석 : 삼성전자 / 실적 / 이 / 증가 / 하 / 었 / 다
 
 #### 4-4-3. Hybrid Search
 - 재정렬
