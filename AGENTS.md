@@ -78,19 +78,22 @@ src/
 
   embeddings/
     __init__.py
-    embedding_service.py             # 임베딩 입력 구성, 배치 처리, 결과 벡터 취합 및 검증
-    embedding_model_client.py        # OpenAI 임베딩 API 호출, 클라이언트 재사용, 오류 처리
+    embedding_service.py            # 임베딩 입력 구성, 배치 처리, 결과 벡터 취합 및 검증
+    embedding_model_client.py       # OpenAI 임베딩 API 호출, 클라이언트 재사용, 오류 처리
 
   indexing/
     __init__.py
-    news_indexer.py                  # 청킹 파일 로딩·파일 간 중복 정리·최신 기사 선택
-                                     # 동일한 청크 목록으로 임베딩·FAISS·BM25 구축 및 저장을 조립
-    faiss_index.py                   # 벡터 정규화, FAISS 인덱스 생성·저장·로드
-    bm25_index.py                    # Kiwi 공통 토큰화, BM25 인덱스 생성·저장·로드
+    news_indexer.py                 # 청킹 파일 로딩·파일 간 중복 정리·최신 기사 선택
+                                    # 동일한 청크 목록으로 임베딩·FAISS·BM25 구축 및 저장을 조립
+    faiss_index.py                  # 벡터 정규화, FAISS 인덱스 생성·저장·로드
+    bm25_index.py                   # Kiwi 공통 토큰화, BM25 인덱스 생성·저장·로드
 
   search/
     __init__.py
-    vector_search.py                 # FAISS 벡터 유사도 검색
+    vector_search.py                # FAISS 벡터 유사도 검색
+    keyword_search.py               # 키워드/BM25 검색
+    hybrid_search.py                # Keyword Search + FAISS Vector Search 결합
+    search_result_ranker.py         # 검색 결과 재정렬
 
   parsers/
     __init__.py

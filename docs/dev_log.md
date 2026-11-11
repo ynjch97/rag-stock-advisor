@@ -241,3 +241,12 @@ p50 : 196.943 ms, p95 : 278.423 ms (n=20) # HNSW 질문2
 
 BM25 score 3.669292259886812
 ```
+
+#### Hybrid Search
+- `hybrid_search.py`
+  - Vector Search + Keyword Search 실행
+  - 각 검색에서 후보 확보 : `search_news_vectors()`, `search_news_keywords()` 각각 20건씩 조회
+  - 점수 정규화 : `Min-Max` (0~1 범위로 변환 -> 이해하고 적용하기 쉬움)
+  - 결합 방식 : 가중 점수 합산(Weighted Sum) 채택 (`FAISS * 0.7 + BM25 * 0.3`)
+- `search_result_ranker.py`
+  - 반환 값에 `vector_score`, `keyword_score`, `vector_normalized_score`, `keyword_normalized_score`, `hybrid_score`(정규화 점수) 포함

@@ -447,9 +447,15 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - 분석 : 삼성전자 / 실적 / 이 / 증가 / 하 / 었 / 다
 
 #### 4-4-3. Hybrid Search
-- 재정렬
-  - 검색된 뉴스 중 `important="O"` 조건의 데이터를 우선함 (원래 score는 유지함)
-  - 같은 중요도에서는 `RRF` 순위 유지
+- Vector Search + Keyword Search 실행
+- `chunk_id` 기준으로 중복을 합치고, **가중 점수 합산(Weighted Sum)**로 두 검색 순위를 결합
+  - 가중 점수 합산(Weighted Sum) : 각 검색 점수 정규화 후 가중치를 적용해 합산
+
+#### 4-4-4. Reranking
+- 검색된 뉴스 중 `important="O"` 조건의 데이터를 우선함 (원래 `score`는 유지)
+  - 금융/경제 뉴스를 우선해야 하기 때문임
+- 같은 중요도에서는 Hybrid Search 순위(`hybrid_score`) 유지
+- 최종 `top_k` 선택
 
 ### 4-5. Context Builder
 - LLM 입력용 컨텍스트 구성
