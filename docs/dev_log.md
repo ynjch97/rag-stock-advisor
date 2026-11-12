@@ -41,7 +41,7 @@ python -c "from src.parsers.stock_question_parser import parse_stock_question; p
 - `stock_advice_workflow.py`
   - 위 모듈들을 순서대로 호출해서 MVP 전체 흐름 조립
 - `main.py`
-  - 질문 입력 → workflow 실행 → 응답 출력
+  - 질문 입력 -> workflow 실행 -> 응답 출력
 
 #### pytest
 - pytest로 최소 테스트 추가
@@ -292,3 +292,25 @@ BM25 score 3.669292259886812
 # decide_next_action() LLM 판단 후 필요 작업 반환
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.app import stock_advice_workflow as w; p = w.parse_stock_question('SK하이닉스 최근 5거래일 전망'); c = [w._build_analysis_context(p, s, w.settings) for s in p.stocks]; a = w._allowed_agent_actions(p, c, [], 0, w.settings); d = w.decide_next_action(p, c, [], a); print(json.dumps(d.to_dict(), ensure_ascii=False, indent=2))"
 ```
+
+### 8. 질문 의도 추가
+
+#### 종목 추천
+- 질문당 발굴 1회, 검토 후보 최대 10개, 최종 반환 최대 3개
+- `llm_question_analyzer.py`
+  - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
+- `advice_models.py`
+  - 종목 발굴 조건, 후보, 근거 구조와 `discover_stocks` 작업 추가
+- `stock_question_parser.py`
+  - 발굴 질문은 종목명이 없어도 정상 처리하는 분기
+  - 기존 지정 종목 검증은 유지
+- `stock_discovery_service.py`
+  - 검색 근거에서 기업 후보 추출 -> 기준정보 코드 매핑
+  - 중복 제거, 사업 연관성 검증 조립
+- `news_collector.py`
+  - 종목코드 확정 전에도 테마·키워드로 검색할 수 있는 기능 추가
+- `stock_advisor_agent.py`
+  - 발굴 필요성 판단과 `discover_stocks` 선택 추가
+- `stock_advice_workflow.py`
+  - 종목 확정 전 발굴 -> 검증된 후보의 기존 분석 흐름 연결
+- 컨텍스트·응답 서비스 : 후보별 선정 근거·출처·위험 요인을 전달하고 표시

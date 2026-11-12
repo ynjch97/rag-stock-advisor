@@ -1,6 +1,7 @@
 # RAG Stock Advisor
 - 뉴스·전망·시세 데이터를 종합 분석하는 RAG 기반 주식 투자 의사결정 지원 시스템
 - 실행 : `python -X utf8 main.py --mode cli`
+- 상세 개발 로그 : `https://github.com/ynjch97/rag-stock-advisor/blob/main/docs/dev_log.md`
 
 ## 1. 설계
 
@@ -421,7 +422,7 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; print(json.dumps(parse_stock_question('유진로봇 최근 주가 전망?').to_dict(), ensure_ascii=False, indent=2))"
 ```
 
-#### 4-3-2. Agent Controller
+#### 4-3-2. Agent Controller (종목 분석)
 - 다음 작업 중에서 선택
   - 데이터 충분함 : 응답 생성
   - 데이터 부족 : 추가 필요한 작업만 선택하여 수집 절차 수행
@@ -440,6 +441,17 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
   - 새 기사 or 근거가 늘지 않거나 검색 결과가 반복되면 조기 종료
   - 최근 동일 조건으로 수집했지만 결과가 없었던 이력도 확인하여 반복 수집 방지
   - 인덱싱 호출, 처리 청크 수, 요청 시간에도 별도 상한을 둠
+
+#### 4-3-3. Agent Controller (종목 추천)
+- 조건 기반 종목 발굴
+  - `반도체 소재 관련주 3개 추천해줘` -> 발굴 조건 추출 (반도체 소재, 3개)
+  - 관련 기업 후보 검색 -> 종목명 및 종목코드 검증
+  - 후보별 주가, 뉴스 조회 -> 근거, 위험 요인을 비교하여 최종 후보 반환
+- 후보 검증 원칙
+  - 기준정보에 존재하는 실제 상장 종목 + 구체적인 사업 연관 근거 필요
+  - 단순히 같은 기사에 언급되었다는 이유로 관련주로 확정하지 않음
+  - *발굴된 종목*은 *질문에서 추출한 종목*과 구분하여 검색 출처, 선정 이유 보존
+  - 검증된 후보가 2개뿐이라면 억지로 3개를 채우지 않음
 
 ### 4-4. Retriever Layer
 - 뉴스 데이터

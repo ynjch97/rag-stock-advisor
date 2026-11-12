@@ -274,5 +274,53 @@
     "volume": 56147847,
     "change_rate": -4.02,
     "change_price": -8100
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-11-09",
+    "open": 190900,
+    "high": 195400,
+    "low": 183800,
+    "close": 187100,
+    "volume": 30090295,
+    "change_rate": -3.26,
+    "change_price": -6300
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-11-10",
+    "open": 197600,
+    "high": 203500,
+    "low": 196400,
+    "close": 197300,
+    "volume": 24915165,
+    "change_rate": 5.45,
+    "change_price": 10200
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-11-11",
+    "open": 195500,
+    "high": 208500,
+    "low": 194400,
+    "close": 208000,
+    "volume": 25340727,
+    "change_rate": 5.42,
+    "change_price": 10700
+  },
+  {
+    "stock_name": "삼성전자",
+    "stock_code": "005930",
+    "base_date": "2026-11-12",
+    "open": 209500,
+    "high": 214000,
+    "low": 206000,
+    "close": 206500,
+    "volume": 31382030,
+    "change_rate": -0.72,
+    "change_price": -1500
   }
 ]
