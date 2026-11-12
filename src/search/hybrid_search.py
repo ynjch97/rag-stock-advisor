@@ -9,6 +9,7 @@ from src.config.settings import Settings, settings
 from src.search.keyword_search import search_news_keywords
 from src.search.search_result_ranker import rerank_news_results
 from src.search.vector_search import search_news_vectors
+from src.services.execution_budget import remaining_timeout
 
 
 DEFAULT_CANDIDATE_K = 20
@@ -66,6 +67,7 @@ def search_news_hybrid(
     stock_code: str | None = None, start_date: str | None = None, end_date: str | None = None,
     faiss_dir: Path | None = None, bm25_path: Path = BM25_TOKENS_PATH,
     app_settings: Settings = settings, client: OpenAI | None = None, kiwi: Kiwi | None = None,
+    deadline: float | None = None,
 ) -> list[dict]:
     if type(top_k) is not int or top_k < 1:
         raise ValueError("top_k must be a positive integer.")
@@ -75,10 +77,13 @@ def search_news_hybrid(
     conditions = dict(top_k=candidate_k, stock_code=stock_code, start_date=start_date,
                       end_date=end_date, app_settings=app_settings)
     # 로컬 BM25 검증을 먼저 수행하여 파일 오류 시 불필요한 임베딩 API 호출 방지
+    remaining_timeout(deadline)
     keyword_results = search_news_keywords(
         question, **conditions, bm25_path=bm25_path,
         metadata_path=directory / "stock_advisor_metadata.json", kiwi=kiwi,
     )
-    vector_results = search_news_vectors(question, **conditions, faiss_dir=directory, client=client)
+    remaining_timeout(deadline)
+    options = {"deadline": deadline} if deadline is not None else {}
+    vector_results = search_news_vectors(question, **conditions, faiss_dir=directory, client=client, **options)
     combined = combine_news_search_results(vector_results, keyword_results)
     return rerank_news_results(combined, top_k=top_k)

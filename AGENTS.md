@@ -109,6 +109,7 @@ src/
     __init__.py
     stock_context_service.py        # 주가/뉴스/Hybrid Search 결과를 분석 컨텍스트로 구성
     stock_advice_service.py         # 자연어 투자 분석 응답 생성
+    execution_budget.py             # Agent 처리의 남은 시간 확인, HTTP 요청 시간 제한
 ```
 
 # 개발 완료 시 예상 질문 유형

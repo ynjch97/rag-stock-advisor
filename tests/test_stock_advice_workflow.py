@@ -1,7 +1,7 @@
 from dataclasses import replace
 from datetime import datetime
 import json
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import httpx
 import pytest
@@ -11,13 +11,14 @@ from src.app.stock_advice_workflow import run_stock_advice_workflow
 from src.collectors.stock_collector import collect_stock_price
 from src.config.settings import settings
 from src.domain.stock_models import DailyStock, RealtimeStock, StockTrend
-from src.domain.advice_models import ParsedQuestion, ParsedStock, QueryPeriod
+from src.domain.advice_models import AgentDecision, ParsedQuestion, ParsedStock, QueryPeriod
 from src.parsers.llm_question_analyzer import QuestionAnalysis
 
 
 # 기존 workflow 테스트는 OpenAI 응답만 모의하여 외부 호출 방지
 @pytest.fixture(autouse=True)
 def question_analysis(monkeypatch):
+    monkeypatch.setattr(workflow, "decide_next_action", Mock(return_value=AgentDecision("respond", "테스트 근거 확보")))
     cases = {
         "삼성전자 사도 될까?": ("삼성전자", "buy_opinion", None),
         "삼성전자 전망": ("삼성전자", "general_analysis", None),
@@ -104,7 +105,7 @@ def test_toss_workflow_passes_price_and_trend(monkeypatch, realtime, saved_daily
     monkeypatch.setattr(workflow, "load_latest_sample_stock", Mock(side_effect=AssertionError("No sample price fallback")))
     config = replace(settings, stock_api_provider="toss")
     answer = run_stock_advice_workflow("두산에너빌리티 최근 3거래일 사도 될까?", config)
-    collector.assert_called_once_with("두산에너빌리티", "034020", app_settings=config, recent_days=3)
+    collector.assert_called_once_with("두산에너빌리티", "034020", app_settings=config, recent_days=3, http_client=ANY)
     loader.assert_called_once_with("034020", 3, base_date="2026-10-23")
     context = generator.call_args.args[0]
     assert context["stock"]["current_price"] == 58900
@@ -117,6 +118,7 @@ def test_toss_workflow_passes_price_and_trend(monkeypatch, realtime, saved_daily
         "두산에너빌리티 최근 3거래일 사도 될까?", stock_code="034020",
         start_date="2026-10-20" if realtime else "2026-10-21",
         end_date="2026-10-23", app_settings=config,
+        deadline=ANY,
     )
     assert "최근 3거래일 하락" in answer
     assert "등락률" not in answer and "%" not in answer
@@ -140,8 +142,9 @@ def test_toss_workflow_does_not_fallback_on_api_error(monkeypatch):
     monkeypatch.setattr(workflow, "collect_stock_price", Mock(side_effect=httpx.ConnectError("offline")))
     sample_loader = Mock()
     monkeypatch.setattr(workflow, "load_latest_sample_stock", sample_loader)
-    with pytest.raises(httpx.ConnectError):
-        run_stock_advice_workflow("삼성전자 전망", replace(settings, stock_api_provider="toss"))
+    answer = run_stock_advice_workflow("삼성전자 전망", replace(settings, stock_api_provider="toss"))
+    assert "주가 조회 실패 (ConnectError)" in answer
+    assert "주가·추세를 확보하지 못했습니다" in answer
     sample_loader.assert_not_called()
 
 
@@ -185,6 +188,7 @@ def test_toss_workflow_end_to_end(tmp_path, monkeypatch):
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         # 기존 수집 함수를 모의 API와 임시 저장 경로에 연결
         def collect(stock_name, stock_code, **kwargs):
+            kwargs.pop("http_client", None)
             return collect_stock_price(
                 stock_name, stock_code, now=datetime.fromisoformat("2026-10-20T12:00:00+09:00"),
                 token_manager=manager, http_client=client, file_path=raw_path, **kwargs,
@@ -317,8 +321,8 @@ def test_hybrid_error_is_not_hidden(monkeypatch, saved_daily_prices_and_news):
     saved_daily_prices_and_news.side_effect = FileNotFoundError("Missing index")
     sample = Mock()
     monkeypatch.setattr(workflow, "load_recent_sample_news", sample)
-    with pytest.raises(FileNotFoundError, match="Missing index"):
-        run_stock_advice_workflow("질문", replace(settings, stock_api_provider="toss"))
+    answer = run_stock_advice_workflow("질문", replace(settings, stock_api_provider="toss"))
+    assert "뉴스 검색 실패 (FileNotFoundError)" in answer
     sample.assert_not_called()
 
 

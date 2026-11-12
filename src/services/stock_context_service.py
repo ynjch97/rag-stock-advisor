@@ -1,7 +1,7 @@
 from typing import Any
 from dataclasses import asdict
 from src.domain.stock_models import StockTrend
-from src.domain.advice_models import ParsedQuestion
+from src.domain.advice_models import AgentExecutionRecord, ParsedQuestion
 
 StockRecord = dict[str, Any]
 NewsRecord = dict[str, Any]
@@ -14,6 +14,7 @@ def build_stock_context(
     news_data: list[NewsRecord],
     trend_data: StockTrend | None = None,
     *, news_source: str = "sample",
+    issues: list[str] | None = None,
 ) -> StockContext:
     news = _build_news_context(news_data)
     article_keys = {
@@ -36,6 +37,7 @@ def build_stock_context(
         "data_sources": {"stock": stock_data.get("source", "sample"), "news": news_source},
         "news": news,
         "summary": {"news_count": len(article_keys), "news_chunk_count": len(news)},
+        "issues": list(issues or []),
     }
 
 
@@ -55,3 +57,17 @@ def _build_news_context(news_data: list[NewsRecord]) -> list[NewsRecord]:
         }
         for news in news_data
     ]
+
+
+# 실행 이력·중단 사유와 근거 부족을 컨텍스트에 붙여 최종 응답의 한계 표시 지원
+def attach_agent_results(
+    contexts: list[StockContext], history: list[AgentExecutionRecord], notes: list[str],
+) -> None:
+    for context in contexts:
+        issues = list(context.get("issues", [])) + notes
+        if not context.get("availability", {}).get("stock", True):
+            issues.append("해당 종목의 기준일 주가·추세를 확보하지 못했습니다.")
+        if not context["news"]:
+            issues.append("질문 기간에 맞는 뉴스 근거가 부족합니다.")
+        context["issues"] = list(dict.fromkeys(issues))
+        context["agent_history"] = [record.to_dict() for record in history]

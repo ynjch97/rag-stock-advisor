@@ -30,15 +30,18 @@ def collect_and_save_news(
     stock_name: str, stock_code: str, start_date: str, end_date: str,
     *, app_settings: Settings = settings, http_client: httpx.Client | None = None,
     file_path: Path | None = None, now: datetime | None = None,
+    start: int = 1,
 ) -> dict[str, Any]:
+    if type(start) is not int or start not in (1, 31):
+        raise ValueError("News start must be 1 or 31.")
     if not stock_name.strip() or re.fullmatch(r"[A-Za-z0-9]{6}", stock_code) is None:
         raise ValueError("A stock name and a six-character stock code are required.")
     checked_at = now if now is not None else datetime.now(KST)
     if checked_at.tzinfo is None or checked_at.utcoffset() is None:
         raise ValueError("Collection time must include a timezone offset.")
     checked_at = checked_at.astimezone(KST)
-    start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
-    if start > end or end > checked_at.date():
+    period_start, period_end = date.fromisoformat(start_date), date.fromisoformat(end_date)
+    if period_start > period_end or period_end > checked_at.date():
         raise ValueError("Invalid or future news date range.")
     if (app_settings.news_api_provider or "").lower() != "naver":
         raise ValueError("News collection requires NEWS_API_PROVIDER=naver.")
@@ -48,7 +51,7 @@ def collect_and_save_news(
     with (nullcontext(http_client) if http_client is not None
           else httpx.Client(timeout=NEWS_TIMEOUT_SECONDS)) as client:
         response = client.get(
-            NAVER_NEWS_URL, params={"query": stock_name.strip(), "sort": "date", "display": 30, "start": 1},
+            NAVER_NEWS_URL, params={"query": stock_name.strip(), "sort": "date", "display": 30, "start": start},
             headers={"X-Naver-Client-Id": app_settings.news_api_key,
                      "X-Naver-Client-Secret": app_settings.news_api_secret},
             timeout=NEWS_TIMEOUT_SECONDS, follow_redirects=False,
@@ -56,6 +59,7 @@ def collect_and_save_news(
         response.raise_for_status()
         payload = response.json()
         if (not isinstance(payload, dict) or not isinstance(payload.get("items"), list)
+                or len(payload["items"]) > 30
                 or any(not isinstance(item, dict) for item in payload["items"])):
             raise ValueError("Invalid Naver news response: items must be an array of objects.")
         robots_cache: dict[str, RobotFileParser] = {}
@@ -71,7 +75,7 @@ def collect_and_save_news(
             except (TypeError, ValueError, OverflowError):
                 original["status"] = "invalid_date"
                 continue
-            if not start <= published_at.date() <= end or published_at > checked_at:
+            if not period_start <= published_at.date() <= period_end or published_at > checked_at:
                 original["status"] = "outside_period"
                 continue
             original["publisher"] = _get_publisher(original["url"])
@@ -82,8 +86,9 @@ def collect_and_save_news(
 
     payload["collection"] = {
         "stock_name": stock_name.strip(), "stock_code": stock_code,
-        "start_date": start.isoformat(), "end_date": end.isoformat(),
+        "start_date": period_start.isoformat(), "end_date": period_end.isoformat(),
         "collected_at": checked_at.isoformat(),
+        "start": start, "display": 30,
     }
     destination = file_path if file_path is not None else get_raw_news_path(stock_code, checked_at)
     _save_raw_news(destination, payload)

@@ -10,7 +10,7 @@ import tempfile
 from kiwipiepy import Kiwi
 from openai import OpenAI
 
-from src.config.paths import BM25_TOKENS_PATH, NEWS_CHUNKS_DIR, PROJECT_ROOT
+from src.config.paths import BM25_TOKENS_PATH, NEWS_CHUNKS_DIR, PROJECT_ROOT, RAW_NEWS_DIR
 from src.config.settings import Settings, settings
 from src.domain.news_models import NewsChunk
 from src.embeddings.embedding_service import build_news_index_texts, embed_texts
@@ -18,6 +18,44 @@ from src.indexing.bm25_index import (
     BM25_PARAMETERS, TOKENIZER_SPEC, build_bm25_index, load_bm25_index, save_bm25_index,
 )
 from src.indexing.faiss_index import build_faiss_index, load_faiss_index, save_faiss_index
+from src.services.execution_budget import remaining_timeout
+
+
+# 청킹 파일에 대응하는 원본 수집 시각·기간·페이지를 읽어 성공한 인덱싱 이력 구성
+def _load_news_collections(chunks_dir: Path, raw_news_dir: Path) -> list[dict]:
+    history = []
+    for path in sorted(chunks_dir.glob("*_chunks.json")):
+        raw_path = raw_news_dir / (path.name[:-len("_chunks.json")] + ".json")
+        if not raw_path.exists():
+            continue
+        with raw_path.open("r", encoding="utf-8") as file:
+            collection = json.load(file).get("collection", {})
+        if not all(collection.get(key) for key in ("stock_code", "start_date", "end_date", "collected_at")):
+            continue
+        collected_at = datetime.fromisoformat(collection["collected_at"])
+        if collected_at.utcoffset() is None:
+            raise ValueError("News collection time requires a timezone.")
+        with path.open("r", encoding="utf-8") as file:
+            records = json.load(file)
+        urls = {record["url"] for record in records
+                if collection["start_date"] <= record["published_date"] <= collection["end_date"]}
+        history.append({**collection, "article_count": len(urls), "chunk_file": path.name})
+    return sorted(history, key=lambda item: item["collected_at"])[-500:]
+
+
+# 빈 수집 결과·변경 없는 인덱스도 수집 이력을 원자적으로 갱신
+def _save_index_metadata(path: Path, metadata: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as file:
+            temporary = Path(file.name)
+            json.dump(metadata, file, ensure_ascii=False, indent=2)
+            file.write("\n")
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 # 기사별 최신 스냅샷 전체를 선택하고 두 인덱스가 공유할 청크 순서 확정
@@ -110,14 +148,25 @@ def index_news(
     faiss_dir: Path | None = None, bm25_path: Path = BM25_TOKENS_PATH,
     client: OpenAI | None = None, kiwi: Kiwi | None = None,
     batch_size: int = 32, force: bool = False,
+    raw_news_dir: Path = RAW_NEWS_DIR, max_chunks: int | None = None,
+    max_characters: int | None = None, deadline: float | None = None,
 ) -> dict:
+    remaining_timeout(deadline)
     if app_settings.vector_db_provider.lower() != "faiss":
         raise ValueError("News indexing currently requires VECTOR_DB_PROVIDER=faiss.")
     chunks = load_latest_news_chunks(chunks_dir)
-    if not chunks:
-        raise ValueError("No news chunks to index.")
+    collections = _load_news_collections(chunks_dir, raw_news_dir)
     destination = faiss_dir if faiss_dir is not None else PROJECT_ROOT / app_settings.vector_db_path
     index_path, metadata_path = destination / "stock_advisor.index", destination / "stock_advisor_metadata.json"
+    if not chunks:
+        if not collections or index_path.exists():
+            raise ValueError("No news chunks to index.")
+        _save_index_metadata(metadata_path, {"schema_version": 1, "chunks": [], "chunk_count": 0,
+                                           "collections": collections, "dimension": 0})
+        return {"rebuilt": False, "chunk_count": 0, "dimension": 0,
+                "faiss_path": str(index_path), "bm25_path": str(bm25_path)}
+    if max_chunks is not None and len(chunks) > max_chunks:
+        raise ValueError("News indexing chunk limit exceeded.")
     if len({path.resolve() for path in (index_path, metadata_path, bm25_path)}) != 3:
         raise ValueError("Index artifacts must use three separate file paths.")
     config = {"embedding_model": app_settings.openai_embedding_model, "input_format": "stock-title-content-v1",
@@ -133,13 +182,19 @@ def index_news(
             raise ValueError("Invalid news index metadata; rebuild with force=True.")
         if existing.get("fingerprint") == fingerprint:
             _, _, existing = load_news_indexes(destination, bm25_path)
+            if existing.get("collections", []) != collections:
+                _save_index_metadata(metadata_path, {**existing, "collections": collections})
             return {"rebuilt": False, "chunk_count": len(chunks), "dimension": existing["dimension"],
                     "faiss_path": str(index_path), "bm25_path": str(bm25_path)}
 
     texts = build_news_index_texts(chunks)
+    if max_characters is not None and sum(map(len, texts)) > max_characters:
+        raise ValueError("News indexing character limit exceeded.")
     # 토큰화 실패도 유료 임베딩 요청 전에 확인
     _, tokens = build_bm25_index(texts, kiwi=kiwi)
-    vectors = embed_texts(texts, app_settings=app_settings, client=client, batch_size=batch_size)
+    options = {"deadline": deadline} if deadline is not None else {}
+    remaining_timeout(deadline)
+    vectors = embed_texts(texts, app_settings=app_settings, client=client, batch_size=batch_size, **options)
     index = build_faiss_index(vectors)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".news_index_", dir=destination.parent) as directory:
@@ -152,11 +207,13 @@ def index_news(
                     "embedding_model": app_settings.openai_embedding_model,
                     "dimension": index.d, "chunk_count": len(chunks),
                     "chunks": [asdict(chunk) for chunk in chunks],
+                    "collections": collections,
                     "faiss_sha256": _file_hash(staged_index), "bm25_sha256": _file_hash(staged_bm25)}
         with staged_metadata.open("w", encoding="utf-8") as file:
             json.dump(metadata, file, ensure_ascii=False, indent=2)
             file.write("\n")
         load_news_indexes(staging, staged_bm25)
+        remaining_timeout(deadline)
         _publish_files([(staged_index, index_path), (staged_bm25, bm25_path), (staged_metadata, metadata_path)])
     return {"rebuilt": True, "chunk_count": len(chunks), "dimension": index.d,
             "faiss_path": str(index_path), "bm25_path": str(bm25_path)}

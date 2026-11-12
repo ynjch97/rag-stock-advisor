@@ -61,6 +61,7 @@ def search_news_vectors(
     start_date: str | None = None, end_date: str | None = None,
     min_score: float | None = None, faiss_dir: Path | None = None,
     app_settings: Settings = settings, client: OpenAI | None = None,
+    deadline: float | None = None,
 ) -> list[dict]:
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be a nonempty string.")
@@ -90,7 +91,8 @@ def search_news_vectors(
     }
     if not candidates:
         return []
-    query = embed_texts([question.strip()], app_settings=app_settings, client=client)
+    options = {"deadline": deadline} if deadline is not None else {}
+    query = embed_texts([question.strip()], app_settings=app_settings, client=client, **options)
     if query.shape[1] != index.d:
         raise ValueError("Question embedding dimension differs from the saved index.")
     norm = np.linalg.norm(query.astype(np.float64))

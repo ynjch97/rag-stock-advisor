@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-12",
+    "recent_days": 5,
+    "recent_change_rate": 5.53,
+    "up_days": 2,
+    "down_days": 3,
+    "trend": "최근 5거래일 상승"
+  }
+]

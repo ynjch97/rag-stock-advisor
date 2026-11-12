@@ -272,13 +272,23 @@ BM25 score 3.669292259886812
   - `AgentDecision` 추가 : 대상 종목, 실행할 작업, 판단 이유
 - `news_collector.py`
   - `start=1`, `start=31` 로 추가 수집 지원
+  - `stock_advisor_metadata.json` > `collections` 에 수집 이력 저장
 - `news_indexer.py`
   - 최신성 판단용 이력(`수집 시각`)을 메타데이터에 보존하는 부분
 - `stock_advice_workflow.py`
   - Agent의 결정을 실행하고 결과를 다시 전달하는 반복 흐름
+  - `stock_advisor_agent.py` 에서 다음 작업 결정
+  - 수집과 수집 이력 보존, LLM의 단일 작업 선택, workflow 반복 실행
+  - 빈 수집 결과도 이력으로 남겨 같은 조건의 재수집을 막도록 구현
 - `stock_context_service.py`
   - 확보한 근거와 데이터 부족, 실패 사유를 응답 단계에 전달하는 부분
 - `stock_advisor_agent.py`
   - 질문, 현재 데이터, 실행 이력을 보고 다음 작업을 결정하는 Controller
 - `rag_indexing_workflow.py`
   - 뉴스 수집 -> 전처리 -> 청킹 -> 인덱싱을 조립하는 역할
+- `execution_budget.py`
+  - 각 과정에서 무한 반복과 비용 증가를 막도록 제한
+``` bash
+# decide_next_action() LLM 판단 후 필요 작업 반환
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.app import stock_advice_workflow as w; p = w.parse_stock_question('SK하이닉스 최근 5거래일 전망'); c = [w._build_analysis_context(p, s, w.settings) for s in p.stocks]; a = w._allowed_agent_actions(p, c, [], 0, w.settings); d = w.decide_next_action(p, c, [], a); print(json.dumps(d.to_dict(), ensure_ascii=False, indent=2))"
+```

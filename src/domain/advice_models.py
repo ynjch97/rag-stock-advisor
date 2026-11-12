@@ -65,3 +65,19 @@ class AgentDecision:
     # 중첩된 대상 종목을 포함하여 실행 계획을 딕셔너리로 변환
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+# 추가 작업 시도는 실패해도 기록하여 동일 작업 반복과 예산 초과를 방지
+@dataclass(frozen=True)
+class AgentExecutionRecord:
+    action: str
+    stock_code: str | None
+    success: bool
+    reason: str
+    search_query: str | None = None
+    news_start: int | None = None
+    new_articles: int = 0
+
+    # LLM에 전달할 실행 이력을 직렬화
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

@@ -18,6 +18,7 @@ def build_news_index_texts(chunks: list[NewsChunk]) -> list[str]:
 def embed_texts(
     texts: list[str], *, app_settings: Settings = settings, client: OpenAI | None = None,
     batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+    deadline: float | None = None,
 ) -> np.ndarray:
     if type(batch_size) is not int or not 1 <= batch_size <= 2048:
         raise ValueError("Embedding batch_size must be between 1 and 2048.")
@@ -28,7 +29,8 @@ def embed_texts(
     for start in range(0, len(texts), batch_size):
         batch = texts[start:start + batch_size]
         try:
-            vectors = np.asarray(request_embeddings(batch, app_settings=app_settings, client=client), dtype=np.float32)
+            options = {"deadline": deadline} if deadline is not None else {}
+            vectors = np.asarray(request_embeddings(batch, app_settings=app_settings, client=client, **options), dtype=np.float32)
         except (TypeError, OverflowError):
             raise ValueError("Embedding vectors must be numeric arrays.") from None
         if (vectors.ndim != 2 or vectors.shape[0] != len(batch) or vectors.shape[1] == 0

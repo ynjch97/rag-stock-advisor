@@ -27,6 +27,8 @@ def generate_stock_advice(context: StockContext) -> str:
             key_news,
             "",
             conclusion,
+            *(["", "데이터 확인 한계:", *[f"- {issue}" for issue in context["issues"]]]
+              if context.get("issues") else []),
             "",
             "※ 이 응답은 투자 참고용이며 최종 투자 판단은 본인 책임입니다.",
         ]
@@ -51,6 +53,8 @@ def generate_stock_comparison_advice(contexts: list[StockContext]) -> str:
 
 # 주가 흐름 요약 문장 생성
 def _build_stock_overview(stock: dict[str, Any]) -> str:
+    if stock.get("current_price") is None:
+        return "기준일의 주가·추세를 확보하지 못했습니다."
     label = f"{stock['base_date']} 종가는" if stock.get("price_type") == "close" else "현재가는"
     return (
         f"{label} {stock['current_price']:,}원이고, "
@@ -92,6 +96,8 @@ def _build_conclusion(
     intent: str,
     stock: dict[str, Any],
 ) -> str:
+    if stock.get("change_rate") is None and intent in ("rise_reason", "decline_reason"):
+        return "조회된 주가가 없어 상승·하락 여부를 확인할 수 없습니다."
     if intent == "buy_opinion":
         return "주가 흐름만으로 매수 적정성을 판단할 수 없습니다. 기업 실적과 관련 뉴스의 근거를 추가로 확인해야 합니다."
 

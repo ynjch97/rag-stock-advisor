@@ -39,6 +39,29 @@ def _collect(config, client, path):
     )
 
 
+# 추가 페이지는 31부터 30건 조회하며 수집 이력에도 시작 위치 기록
+def test_collect_second_page(tmp_path, config):
+    # 추가 조회의 페이지 매개변수 검증
+    def respond(request):
+        assert request.url.params["start"] == "31"
+        assert request.url.params["display"] == "30"
+        return httpx.Response(200, json={"items": []})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        result = collector.collect_and_save_news("삼성전자", "005930", "2026-10-30", "2026-11-05",
+            start=31, app_settings=config, http_client=client, file_path=tmp_path / "news.json",
+            now=datetime.fromisoformat("2026-11-05T12:00:00+09:00"))
+    assert result["collection"]["start"] == 31
+
+
+# 허용된 두 페이지 외 시작 위치는 요청 전에 거부
+@pytest.mark.parametrize("start", [0, 2, 61, True, "31"])
+def test_collect_invalid_page(config, start):
+    with pytest.raises(ValueError, match="News start"):
+        collector.collect_and_save_news("삼성전자", "005930", "2026-10-30", "2026-11-05",
+                                        start=start, app_settings=config)
+
+
 # API 응답은 그대로 보존하며 주말 기사의 원문 조회 결과를 추가하고 저장
 def test_collect_preserves_api_response_and_adds_original(tmp_path, config, payload, monkeypatch):
     source = deepcopy(payload)
