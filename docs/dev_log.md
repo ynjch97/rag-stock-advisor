@@ -250,3 +250,6 @@ BM25 score 3.669292259886812
   - 결합 방식 : 가중 점수 합산(Weighted Sum) 채택 (`FAISS * 0.7 + BM25 * 0.3`)
 - `search_result_ranker.py`
   - 반환 값에 `vector_score`, `keyword_score`, `vector_normalized_score`, `keyword_normalized_score`, `hybrid_score`(정규화 점수) 포함
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.search.hybrid_search import search_news_hybrid; print(json.dumps(search_news_hybrid('삼성전자 반도체 실적', stock_code='005930'), ensure_ascii=False, indent=2))"
+```
