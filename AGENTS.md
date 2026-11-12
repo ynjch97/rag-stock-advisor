@@ -103,12 +103,15 @@ src/
   parsers/
     __init__.py
     llm_question_analyzer.py        # 사용자 질문을 OpenAI LLM 으로 분석/구조화
+    llm_stock_discovery_analyzer.py # 검색한 뉴스 원문에서 기업 후보, 선정 이유, 인용 근거 추출
     stock_question_parser.py        # 사용자 질문에서 종목명, 의도, 기간 추출 -> ParsedQuestion 반환
 
   services/
     __init__.py
     stock_context_service.py        # 주가/뉴스/Hybrid Search 결과를 분석 컨텍스트로 구성
     stock_advice_service.py         # 자연어 투자 분석 응답 생성
+    stock_discovery_service.py      # 기업 후보 추출 -> 기준정보 코드 매핑
+                                    # 중복 제거, 실제 인용 검증
     execution_budget.py             # Agent 처리의 남은 시간 확인, HTTP 요청 시간 제한
 ```
 

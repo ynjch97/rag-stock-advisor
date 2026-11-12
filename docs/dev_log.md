@@ -298,21 +298,32 @@ BM25 score 3.669292259886812
 #### 종목 추천
 - `settings.py`
   - 질문당 발굴 1회, 검토 후보 최대 10개
-- `llm_question_analyzer.py`
-  - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
 - `advice_models.py`
   - 종목 발굴 조건, 후보, 근거 구조와 작업 의도(`discover_stocks`) 추가
   - 최종 반환 후보 수 : 사용자 요청에 따름 (초기 설정 3개, 최대 10개)
+- `llm_question_analyzer.py`
+  - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
+- `llm_stock_discovery_analyzer.py`
+  - OpenAI Tool Calling 으로 검색한 뉴스 원문에서 기업 후보, 선정 이유, 인용 근거 추출
 - `stock_question_parser.py`
   - 발굴 질문은 종목명이 없어도 정상 처리하는 분기
   - 기존 지정 종목 검증은 유지
 - `stock_discovery_service.py`
   - 검색 근거에서 기업 후보 추출 -> 기준정보 코드 매핑
-  - 중복 제거, 사업 연관성 검증 조립
+  - 중복 제거, 사업 연관성 등 실제 인용 검증
 - `news_collector.py`
-  - 종목코드 확정 전에도 테마·키워드로 검색할 수 있는 기능 추가
+  - 종목코드 없이 테마로 검색하는 `collect_theme_news()` 추가
 - `stock_advisor_agent.py`
   - 발굴 필요성 판단과 `discover_stocks` 선택 추가
 - `stock_advice_workflow.py`
   - 종목 확정 전 발굴 -> 검증된 후보의 기존 분석 흐름 연결
 - 컨텍스트·응답 서비스 : 후보별 선정 근거·출처·위험 요인을 전달하고 표시
+
+#### 테스트
+``` bash
+# 키워드로 검색된 기사 조회
+.\.venv\Scripts\python.exe -X utf8 -c "from collections import Counter; from src.collectors.news_collector import collect_theme_news; p = collect_theme_news('반도체 소재'); print('검색 건수:', len(p['items'])); print('원문 상태:', dict(Counter(i.get('original_article', {}).get('status') for i in p['items']))); print('원문 확보 기사:', [i['title'] for i in p['items'] if i.get('original_article', {}).get('status') == 'success'])"
+
+# ParsedQuestion 조회, 검색된 후보 목록 조회
+.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; from src.services.stock_discovery_service import discover_stocks; parsed = parse_stock_question('반도체 소재 관련주 3개만 추천해줘'); print(json.dumps(parsed.to_dict(), ensure_ascii=False, indent=2)); candidates = discover_stocks(parsed.discovery) if not parsed.needs_clarification and parsed.discovery is not None else []; print(json.dumps([c.to_dict() for c in candidates], ensure_ascii=False, indent=2))"
+```

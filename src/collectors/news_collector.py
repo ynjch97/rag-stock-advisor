@@ -13,6 +13,7 @@ from trafilatura import extract
 
 from src.config.paths import get_raw_news_path
 from src.config.settings import Settings, settings
+from src.services.execution_budget import deadline_http_client
 
 
 NAVER_NEWS_URL = "https://openapi.naver.com/v1/search/news.json"
@@ -51,15 +52,52 @@ def collect_and_save_news(
     file_path: Path | None = None, now: datetime | None = None,
     start: int = 1,
 ) -> dict[str, Any]:
-    if type(start) is not int or start not in (1, 31):
-        raise ValueError("News start must be 1 or 31.")
     if not stock_name.strip() or re.fullmatch(r"[A-Za-z0-9]{6}", stock_code) is None:
         raise ValueError("A stock name and a six-character stock code are required.")
+    payload = _fetch_news(
+        stock_name, start_date, end_date, app_settings=app_settings,
+        http_client=http_client, now=now, start=start,
+    )
+    payload["collection"].update(stock_name=stock_name.strip(), stock_code=stock_code)
+    collected_at = datetime.fromisoformat(payload["collection"]["collected_at"])
+    destination = file_path if file_path is not None else get_raw_news_path(stock_code, collected_at)
+    _save_raw_news(destination, payload)
+    return payload
+
+
+# 종목 발굴용 테마 뉴스를 수집하고 파일 저장 없이 반환
+def collect_theme_news(
+    query: str, start_date: str | None = None, end_date: str | None = None,
+    *, app_settings: Settings = settings, http_client: httpx.Client | None = None,
+    now: datetime | None = None, start: int = 1, deadline: float | None = None,
+) -> dict[str, Any]:
+    return _fetch_news(
+        query, start_date, end_date, app_settings=app_settings, http_client=http_client,
+        now=now, start=start, deadline=deadline,
+    )
+
+
+# 공통 검색어로 네이버 뉴스를 조회하고 기간·언론사 조건에 맞는 원문 추출
+def _fetch_news(
+    query: str, start_date: str | None = None, end_date: str | None = None,
+    *, app_settings: Settings = settings, http_client: httpx.Client | None = None,
+    now: datetime | None = None, start: int = 1, deadline: float | None = None,
+) -> dict[str, Any]:
+    if not isinstance(query, str) or not query.strip() or len(query.strip()) > 500:
+        raise ValueError("News query must contain 1 to 500 characters.")
+    if type(start) is not int or start not in (1, 31):
+        raise ValueError("News start must be 1 or 31.")
+    if (start_date is None) != (end_date is None):
+        raise ValueError("Provide both news start_date and end_date, or neither.")
     checked_at = now if now is not None else datetime.now(KST)
     if checked_at.tzinfo is None or checked_at.utcoffset() is None:
         raise ValueError("Collection time must include a timezone offset.")
     checked_at = checked_at.astimezone(KST)
-    period_start, period_end = date.fromisoformat(start_date), date.fromisoformat(end_date)
+    try:
+        period_start = date.fromisoformat(start_date) if start_date is not None else date.min
+        period_end = date.fromisoformat(end_date) if end_date is not None else checked_at.date()
+    except (TypeError, ValueError):
+        raise ValueError("Invalid news date range.") from None
     if period_start > period_end or period_end > checked_at.date():
         raise ValueError("Invalid or future news date range.")
     if (app_settings.news_api_provider or "").lower() != "naver":
@@ -68,9 +106,9 @@ def collect_and_save_news(
         raise ValueError("Naver requires NEWS_API_KEY (Client ID) and NEWS_API_SECRET.")
 
     with (nullcontext(http_client) if http_client is not None
-          else httpx.Client(timeout=NEWS_TIMEOUT_SECONDS)) as client:
+          else deadline_http_client(deadline, NEWS_TIMEOUT_SECONDS)) as client:
         response = client.get(
-            NAVER_NEWS_URL, params={"query": stock_name.strip(), "sort": "date", "display": 30, "start": start},
+            NAVER_NEWS_URL, params={"query": query.strip(), "sort": "date", "display": 30, "start": start},
             headers={"X-Naver-Client-Id": app_settings.news_api_key,
                      "X-Naver-Client-Secret": app_settings.news_api_secret},
             timeout=NEWS_TIMEOUT_SECONDS, follow_redirects=False,
@@ -104,14 +142,11 @@ def collect_and_save_news(
             _fetch_original_article(client, original, robots_cache)
 
     payload["collection"] = {
-        "stock_name": stock_name.strip(), "stock_code": stock_code,
-        "start_date": period_start.isoformat(), "end_date": period_end.isoformat(),
+        "query": query.strip(), "start_date": start_date, "end_date": end_date,
         "collected_at": checked_at.isoformat(),
         "start": start, "display": 30,
-        **summarize_news_page(payload, start_date, end_date, start),
+        **summarize_news_page(payload, period_start.isoformat(), period_end.isoformat(), start),
     }
-    destination = file_path if file_path is not None else get_raw_news_path(stock_code, checked_at)
-    _save_raw_news(destination, payload)
     return payload
 
 
@@ -149,6 +184,7 @@ def _can_fetch_article(client: httpx.Client, url: str, cache: dict[str, RobotFil
 
 
 # 리다이렉트 대상도 검증하고 HTML·추출 본문·개별 실패 상태를 원본 응답에 기록
+# NEWS_PUBLISHERS 에 존재하는 도메인은 robots.txt 정책 확인 후 본문 추출
 def _fetch_original_article(
     client: httpx.Client, result: dict[str, Any], robots_cache: dict[str, RobotFileParser],
 ) -> None:

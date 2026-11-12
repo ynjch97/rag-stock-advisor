@@ -41,6 +41,7 @@ class StockDiscoveryEvidence:
     content: str
     publisher: str | None = None
     published_date: str | None = None
+    excerpt: str | None = None  # 사업 연관성을 확인한 실제 인용 구간 (content는 전체 본문 보존)
 
 
 # 종목 검색 후보 (코드 매핑과 사업 검증은 후속 발굴 서비스가 수행)

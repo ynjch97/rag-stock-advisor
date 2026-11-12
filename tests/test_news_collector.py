@@ -54,6 +54,44 @@ def test_collect_second_page(tmp_path, config):
     assert result["collection"]["start"] == 31
 
 
+# 종목코드 없이 테마로 조회하고 기존의 허용 언론사·원문 조회 절차를 재사용
+def test_collect_theme_query_without_stock_code(config, payload, monkeypatch):
+    requests = []
+    monkeypatch.setattr(collector, "extract", Mock(return_value="소재기업A는 반도체 소재를 생산한다."))
+
+    # 네이버 검색·robots·원문 요청을 모두 모의 처리
+    def respond(request):
+        requests.append(request)
+        if request.url.host == "openapi.naver.com":
+            assert request.url.params["query"] == "반도체 소재"
+            return httpx.Response(200, json=deepcopy(payload))
+        assert "X-Naver-Client-Secret" not in request.headers
+        return httpx.Response(200, text="User-agent: *\nDisallow:\n" if request.url.path == "/robots.txt" else "<article>본문</article>")
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        result = collector.collect_theme_news("반도체 소재", app_settings=config, http_client=client,
+            now=datetime.fromisoformat("2026-11-05T12:00:00+09:00"))
+    assert result["collection"]["query"] == "반도체 소재"
+    assert "stock_code" not in result["collection"]
+    assert "stock_name" not in result["collection"]
+    assert result["collection"]["start_date"] is None
+    assert result["items"][0]["original_article"]["status"] == "success"
+    assert len(requests) == 3
+
+
+# 테마 검색도 빈 검색어·부분 날짜 범위·미래 기간은 API 요청 전에 거부
+@pytest.mark.parametrize("query,start_date,end_date", [
+    ("", None, None), (None, None, None), ("가" * 501, None, None),
+    ("반도체", "2026-11-01", None), ("반도체", None, "2026-11-05"),
+    ("반도체", "invalid", "2026-11-05"), ("반도체", "2026-11-01", "2026-11-06"),
+])
+def test_invalid_theme_query(config, query, start_date, end_date):
+    with httpx.Client(transport=httpx.MockTransport(Mock(side_effect=AssertionError("No requests")))) as client:
+        with pytest.raises(ValueError):
+            collector.collect_theme_news(query, start_date, end_date, app_settings=config, http_client=client,
+                now=datetime.fromisoformat("2026-11-05T12:00:00+09:00"))
+
+
 # 허용된 두 페이지 외 시작 위치는 요청 전에 거부
 @pytest.mark.parametrize("start", [0, 2, 61, True, "31"])
 def test_collect_invalid_page(config, start):
