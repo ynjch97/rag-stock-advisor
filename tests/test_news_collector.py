@@ -62,6 +62,28 @@ def test_collect_invalid_page(config, start):
                                         start=start, app_settings=config)
 
 
+# 최신순 첫 페이지가 목표 기간보다 최신 기사로 가득 차면 다음 페이지 허용
+@pytest.mark.parametrize("day,count,total,expected_next", [
+    ("Fri, 13 Nov 2026 02:00:00 +0900", 30, 100, 31),
+    ("Thu, 05 Nov 2026 02:00:00 +0900", 30, 100, None),
+    ("Fri, 13 Nov 2026 02:00:00 +0900", 1, 100, None),
+    ("Fri, 13 Nov 2026 02:00:00 +0900", 30, 30, None),
+])
+def test_page_summary_distinguishes_outside_period(day, count, total, expected_next):
+    summary = collector.summarize_news_page({"items": [{"pubDate": day}] * count, "total": total},
+                                             "2026-11-06", "2026-11-12")
+    assert summary["returned_count"] == count
+    assert summary["in_period_count"] == 0
+    assert summary["next_start"] == expected_next
+
+
+# 두 번째 페이지 다음은 60건 상한을 넘어가므로 허용하지 않음
+def test_page_summary_does_not_offer_third_page():
+    summary = collector.summarize_news_page({"items": [{"pubDate": "Fri, 13 Nov 2026 02:00:00 +0900"}] * 30},
+                                             "2026-11-06", "2026-11-12", 31)
+    assert summary["next_start"] is None
+
+
 # API 응답은 그대로 보존하며 주말 기사의 원문 조회 결과를 추가하고 저장
 def test_collect_preserves_api_response_and_adds_original(tmp_path, config, payload, monkeypatch):
     source = deepcopy(payload)

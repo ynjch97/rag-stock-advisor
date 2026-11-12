@@ -37,6 +37,8 @@ search_news=질문을 재작성하여 기존 인덱스 재검색, stop=한계·�
 기사 수는 URL 단위로 세며 청크 수나 상대 hybrid_score만으로 충분하다고 판단하지 않는다.
 최신성은 기사 발행일과 news_collections의 collected_at을 함께 보며 과거 질문에 오늘 기사를 요구하지 않는다.
 뉴스 0건·수집 시각 불명·질문에 필요한 실적이나 원인 후보가 없으면 허용된 보충 작업을 검토한다.
+반환 기사는 있지만 기간 내 0건이고 next_start=31이면 최신순 다음 페이지로 목표 기간을 찾는 작업을 우선 검토한다.
+이는 기사 자체가 0건인 상황과 다르며 날짜 조건을 임의로 넓히지 않는다.
 같은 질문 재검색·같은 페이지 재수집을 반복하지 않는다. important O는 우선도이지 사실성 보장이 아니다.
 allowed_actions에 있는 조합만 선택한다. respond/stop의 stock_code·news_start·search_query는 null이다.
 collect_news는 news_start를, search_news는 search_query를 지정한다.

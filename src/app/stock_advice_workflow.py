@@ -1,13 +1,15 @@
 from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 import json
+from pathlib import Path
 import time
 
 import httpx
 
 from src.collectors.stock_collector import collect_stock_price
 from src.config.settings import Settings, settings
-from src.config.paths import BM25_TOKENS_PATH, PROJECT_ROOT, get_raw_price_path
+from src.config.paths import BM25_TOKENS_PATH, PROJECT_ROOT, RAW_NEWS_DIR, get_raw_price_path
+from src.collectors.news_collector import summarize_news_page
 from src.data_loaders.sample_news_loader import load_recent_sample_news
 from src.data_loaders.sample_stock_loader import load_latest_sample_stock, load_sample_stocks
 from src.parsers.stock_question_parser import parse_stock_question
@@ -186,7 +188,20 @@ def _read_news_collections(stock_code: str, app_settings: Settings) -> list[dict
         if (collected_at.utcoffset() is None or date.fromisoformat(item["start_date"]) > date.fromisoformat(item["end_date"])
                 or item.get("start", 1) not in (1, 31)):
             raise ValueError("Invalid saved news collection dates or page.")
-    return [item for item in collections if item["stock_code"] == stock_code]
+    result = []
+    for item in collections:
+        if item["stock_code"] != stock_code:
+            continue
+        # 이전 이력은 대응 raw에서 페이지 상태만 복원; API 호출·재임베딩은 하지 않음
+        item = dict(item)
+        chunk_file = item.get("chunk_file")
+        if "next_start" not in item and isinstance(chunk_file, str) and chunk_file.endswith("_chunks.json"):
+            raw_path = RAW_NEWS_DIR / (Path(chunk_file).name[:-len("_chunks.json")] + ".json")
+            if raw_path.exists():
+                raw = json.loads(raw_path.read_text(encoding="utf-8"))
+                item.update(summarize_news_page(raw, item["start_date"], item["end_date"], item.get("start", 1)))
+        result.append(item)
+    return result
 
 
 # 서버가 현재 예산·성공/실패 이력으로 실행 가능한 도구만 허용 (LLM이 제한을 늘릴 수 없음)
@@ -222,7 +237,9 @@ def _allowed_agent_actions(parsed: ParsedQuestion, contexts: list[StockContext],
             continue
         if 1 not in pages:
             allowed.append({"action": "collect_news", "stock_code": code, "news_start": 1})
-        elif 31 not in pages and not any(item.get("article_count") == 0 for item in recent):
+        elif 31 not in pages and (any(item.get("next_start") == 31 for item in recent)
+                                 or (not any("next_start" in item for item in recent)
+                                     and not any(item.get("article_count") == 0 for item in recent))):
             allowed.append({"action": "collect_news", "stock_code": code, "news_start": 31})
     return allowed
 
@@ -292,6 +309,13 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
                                                      else "news_retryable"] = False
                 continue
             if before == _evidence_signature(contexts[position]) and new_articles == 0:
+                # 최신 기사만 받은 첫 페이지는 목표 기간에 도달하지 못한 것일 수 있음
+                if (decision.action == "collect_news" and result.get("collection", {}).get("next_start") == 31
+                    and any(
+                    item["action"] == "collect_news" and item.get("stock_code") == code
+                    for item in _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings)
+                )):
+                    continue
                 notes.append("추가 기사·근거가 늘지 않아 반복 조사를 종료했습니다.")
                 break
         except TOOL_ERRORS as error:

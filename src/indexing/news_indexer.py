@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from src.config.paths import BM25_TOKENS_PATH, NEWS_CHUNKS_DIR, PROJECT_ROOT, RAW_NEWS_DIR
 from src.config.settings import Settings, settings
+from src.collectors.news_collector import summarize_news_page
 from src.domain.news_models import NewsChunk
 from src.embeddings.embedding_service import build_news_index_texts, embed_texts
 from src.indexing.bm25_index import (
@@ -29,9 +30,13 @@ def _load_news_collections(chunks_dir: Path, raw_news_dir: Path) -> list[dict]:
         if not raw_path.exists():
             continue
         with raw_path.open("r", encoding="utf-8") as file:
-            collection = json.load(file).get("collection", {})
+            raw = json.load(file)
+            collection = raw.get("collection", {})
         if not all(collection.get(key) for key in ("stock_code", "start_date", "end_date", "collected_at")):
             continue
+        collection = {**collection, **summarize_news_page(
+            raw, collection["start_date"], collection["end_date"], collection.get("start", 1),
+        )}
         collected_at = datetime.fromisoformat(collection["collected_at"])
         if collected_at.utcoffset() is None:
             raise ValueError("News collection time requires a timezone.")

@@ -25,6 +25,25 @@ NEWS_PUBLISHERS = {
 }
 
 
+# 기간 내 0건과 페이지 자체 0건을 구분하고, 최신순 다음 페이지가 기간에 도달할 여지 계산
+def summarize_news_page(payload: dict[str, Any], start_date: str, end_date: str, start: int = 1) -> dict:
+    period_start, period_end = date.fromisoformat(start_date), date.fromisoformat(end_date)
+    items = payload.get("items", [])
+    dates = []
+    for item in items:
+        try:
+            published_at = parsedate_to_datetime(item.get("pubDate", ""))
+            if published_at.utcoffset() is not None:
+                dates.append(published_at.astimezone(KST).date())
+        except (TypeError, ValueError, OverflowError):
+            continue
+    total = payload.get("total")
+    has_next = (start == 1 and len(items) == 30 and bool(dates) and min(dates) >= period_start
+                and (type(total) is not int or total >= start + len(items)))
+    return {"returned_count": len(items), "in_period_count": sum(period_start <= day <= period_end for day in dates),
+            "next_start": 31 if has_next else None}
+
+
 # 종목별 최신 30건의 API 응답을 보존하고 기간·언론사 조건에 맞는 원문 조회 결과를 추가해 저장
 def collect_and_save_news(
     stock_name: str, stock_code: str, start_date: str, end_date: str,
@@ -89,6 +108,7 @@ def collect_and_save_news(
         "start_date": period_start.isoformat(), "end_date": period_end.isoformat(),
         "collected_at": checked_at.isoformat(),
         "start": start, "display": 30,
+        **summarize_news_page(payload, start_date, end_date, start),
     }
     destination = file_path if file_path is not None else get_raw_news_path(stock_code, checked_at)
     _save_raw_news(destination, payload)

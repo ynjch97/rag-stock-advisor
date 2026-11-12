@@ -122,6 +122,24 @@ def test_invalid_collection_history_is_rejected(tmp_path):
         workflow._read_news_collections("000660", config)
 
 
+# 기존 메타데이터도 대응 raw에서 페이지 상태를 복원하며 원본 파일은 변경하지 않음
+def test_legacy_collection_restores_page_status(tmp_path, monkeypatch):
+    name = "000660_news_20261113_030000_000001"
+    collection = {"stock_code": "000660", "start_date": "2026-11-06", "end_date": "2026-11-12",
+                  "collected_at": datetime.now(workflow.KST).isoformat(), "start": 1,
+                  "article_count": 0, "chunk_file": name + "_chunks.json"}
+    metadata = tmp_path / "stock_advisor_metadata.json"
+    metadata.write_text(json.dumps({"collections": [collection]}), encoding="utf-8")
+    before = metadata.read_bytes()
+    (tmp_path / (name + ".json")).write_text(json.dumps({"items": [
+        {"pubDate": "Fri, 13 Nov 2026 02:00:00 +0900"}] * 30, "total": 100}), encoding="utf-8")
+    monkeypatch.setattr(workflow, "RAW_NEWS_DIR", tmp_path)
+    entries = workflow._read_news_collections("000660", replace(settings, vector_db_path=str(tmp_path)))
+    assert entries[0]["next_start"] == 31
+    assert entries[0]["returned_count"] == 30
+    assert metadata.read_bytes() == before
+
+
 # 추가 기사·본문이 없으면 즉시 종료
 def test_no_progress_stops_early(environment):
     parsed, contexts, collector, search, agent = environment
@@ -174,6 +192,43 @@ def test_recent_empty_collection_cooldown(environment):
     contexts[0]["news_collections"][0]["collected_at"] = (
         datetime.now(workflow.KST) - timedelta(seconds=settings.agent_news_refresh_seconds + 1)).isoformat()
     assert any(item["action"] == "collect_news" for item in workflow._allowed_agent_actions(parsed, contexts, [], 0, settings))
+
+
+# 기간 내 0건이어도 첫 페이지에 더 최신 기사 30건이 있으면 두 번째 페이지 차단하지 않음
+def test_outside_period_page_allows_next_page(environment):
+    parsed, contexts, _, _, _ = environment
+    contexts[0]["news_collections"] = [{"stock_code": "000660", "start": 1, "article_count": 0,
+        "returned_count": 30, "in_period_count": 0, "next_start": 31,
+        "start_date": "2026-11-06", "end_date": "2026-11-12",
+        "collected_at": datetime.now(workflow.KST).isoformat()}]
+    pages = [item["news_start"] for item in workflow._allowed_agent_actions(parsed, contexts, [], 0, settings)
+             if item["action"] == "collect_news"]
+    assert pages == [31]
+
+
+# API가 마지막 페이지임을 확인했다면 기간 내 기사가 있어도 추가 페이지를 요청하지 않음
+def test_exhausted_page_does_not_offer_more_collection(environment):
+    parsed, contexts, _, _, _ = environment
+    contexts[0]["news_collections"] = [{"stock_code": "000660", "start": 1, "article_count": 1,
+        "returned_count": 1, "in_period_count": 1, "next_start": None,
+        "start_date": "2026-11-06", "end_date": "2026-11-12",
+        "collected_at": datetime.now(workflow.KST).isoformat()}]
+    assert not any(item["action"] == "collect_news" for item in workflow._allowed_agent_actions(
+        parsed, contexts, [], 0, settings))
+
+
+# 첫 페이지에 기간 내 근거가 없어도 다음 페이지가 유효하면 조기 종료 대신 재평가
+def test_outside_period_page_does_not_stop_before_second_page(environment):
+    parsed, contexts, collector, search, agent = environment
+    collector.side_effect = [{"new_articles": 0, "collection": {"next_start": 31}},
+                             {"new_articles": 1, "collection": {"next_start": None}}]
+    search.side_effect = [[], _news()]
+    agent.side_effect = [AgentDecision("collect_news", "목표 기간 탐색", parsed.stocks[0], news_start=1),
+                         AgentDecision("collect_news", "다음 페이지", parsed.stocks[0], news_start=31),
+                         AgentDecision("respond", "근거 확보")]
+    _run(environment)
+    assert [call.kwargs["start"] for call in collector.call_args_list] == [1, 31]
+    assert contexts[0]["summary"]["news_count"] == 1
 
 
 # 기간이 다르면 최근 수집 이력으로 잘못 차단하지 않음
