@@ -46,7 +46,7 @@ def generate_stock_comparison_advice(contexts: list[StockContext]) -> str:
             comparison = f"동일 기간에는 {strongest['stock_name']}의 가격 흐름이 상대적으로 더 강했습니다."
     else:
         comparison = "동일 기준일·기간의 실제 추세가 확보되지 않아 상대 흐름을 확정하지 않았습니다."
-    return "\n\n".join(sections + [comparison, "상승·하락 원인은 실제 뉴스·공시 근거를 추가로 확인해야 합니다."])
+    return "\n\n".join(sections + [comparison, "조회된 뉴스는 원인 후보이며 가격 변동과의 인과관계는 추가 확인이 필요합니다."])
 
 
 # 주가 흐름 요약 문장 생성
@@ -63,15 +63,26 @@ def _build_news_overview(summary: dict[str, int]) -> str:
     return f"뉴스 흐름은 관련 기사 {summary['news_count']}건으로 확인됩니다."
 
 
-# 주요 뉴스 요약 문장 생성
+# 기사별 청크를 묶어 상위 3개 기사의 본문 발췌·출처 표시, 전체 본문은 컨텍스트에 유지
 def _build_key_news(news: list[dict[str, Any]]) -> str:
     if not news:
         return "확인된 관련 뉴스는 없습니다."
 
-    news_lines = [
-        f"- {item['title']}: {item['summary']}"
-        for item in news[:3]
-    ]
+    articles = {}
+    for item in news:
+        key = item.get("url") or item.get("news_id") or (item["title"], item["published_date"])
+        articles.setdefault(key, []).append(item)
+    news_lines = []
+    for chunks in list(articles.values())[:3]:
+        item = chunks[0]
+        content = "\n".join(
+            chunk.get("content") or chunk.get("summary", "")
+            for chunk in sorted(chunks, key=lambda chunk: chunk.get("chunk_index", 0))
+        )
+        excerpt = content[:300] + ("..." if len(content) > 300 else "")
+        source = f"{item.get('publisher') or '출처 미상'} | {item['published_date']}"
+        news_lines.append(f"- {item['title']}: {excerpt}\n  [{source}]"
+                          + (f" {item['url']}" if item.get("url") else ""))
 
     return "주요 뉴스:\n" + "\n".join(news_lines)
 
@@ -88,5 +99,10 @@ def _build_conclusion(
         if stock["change_rate"] < 0:
             return "하락은 확인되지만, 조회된 뉴스와의 인과관계는 추가 확인이 필요합니다."
         return "조회된 주가 기준으로는 뚜렷한 하락이 확인되지 않습니다."
+
+    if intent == "rise_reason":
+        if stock["change_rate"] > 0:
+            return "상승은 확인되지만, 조회된 뉴스와의 인과관계는 추가 확인이 필요합니다."
+        return "조회된 주가 기준으로는 뚜렷한 상승이 확인되지 않습니다."
 
     return "종합하면 주가 흐름과 관련 뉴스의 사실관계를 함께 확인하면서 신중하게 판단할 필요가 있습니다."

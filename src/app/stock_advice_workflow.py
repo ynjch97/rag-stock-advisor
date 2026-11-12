@@ -1,13 +1,17 @@
 from dataclasses import asdict
+from datetime import date
+import json
 
 from src.collectors.stock_collector import collect_stock_price
 from src.config.settings import Settings, settings
+from src.config.paths import get_raw_price_path
 from src.data_loaders.sample_news_loader import load_recent_sample_news
 from src.data_loaders.sample_stock_loader import load_latest_sample_stock, load_sample_stocks
 from src.parsers.stock_question_parser import parse_stock_question
 from src.domain.stock_models import DailyStock
 from src.domain.advice_models import ParsedQuestion, ParsedStock
 from src.preprocessing.stock_preprocessor import load_latest_stock_trend
+from src.search.hybrid_search import search_news_hybrid
 from src.services.stock_advice_service import generate_stock_advice, generate_stock_comparison_advice
 from src.services.stock_context_service import StockContext, build_stock_context
 
@@ -47,6 +51,7 @@ def _build_analysis_context(
 ) -> StockContext:
     provider = (app_settings.stock_api_provider or "").lower()
     trend_data = None
+    news_source = "sample"
     if provider == "sample":
         stock_data = load_latest_sample_stock(stock.stock_name)
         news_data = load_recent_sample_news(stock.stock_name)
@@ -69,11 +74,35 @@ def _build_analysis_context(
             price_type="close" if isinstance(price, DailyStock) else "realtime",
             source="toss",
         )
-        news_data = load_recent_sample_news(stock.stock_name, allow_missing=True)
+        start_date, end_date = _get_news_search_period(
+            stock.stock_code, parsed_question.recent_days, trend_data.base_date, price.base_date,
+        )
+        news_data = search_news_hybrid(
+            parsed_question.original_question, stock_code=stock.stock_code,
+            start_date=start_date, end_date=end_date, app_settings=app_settings,
+        )
+        news_source = "hybrid_search"
 
     return build_stock_context(
         parsed_question=parsed_question,
         stock_data=stock_data,
         news_data=news_data,
         trend_data=trend_data,
+        news_source=news_source,
     )
+
+
+# 수집된 완료 일봉으로 최근 n거래일의 시작일 결정 (장중 뉴스는 당일까지 포함)
+def _get_news_search_period(
+    stock_code: str, recent_days: int, completed_date: str, price_date: str,
+) -> tuple[str, str]:
+    with get_raw_price_path(stock_code).open("r", encoding="utf-8") as file:
+        records = json.load(file)
+    cutoff, end = date.fromisoformat(completed_date), date.fromisoformat(price_date)
+    days = sorted({
+        date.fromisoformat(record["base_date"]) for record in records
+        if record["stock_code"] == stock_code and date.fromisoformat(record["base_date"]) <= cutoff
+    })
+    if len(days) < recent_days or days[-1] != cutoff or end < cutoff:
+        raise ValueError("Completed daily stocks are insufficient for the news search period.")
+    return days[-recent_days].isoformat(), end.isoformat()

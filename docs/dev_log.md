@@ -253,3 +253,11 @@ BM25 score 3.669292259886812
 ``` bash
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.search.hybrid_search import search_news_hybrid; print(json.dumps(search_news_hybrid('삼성전자 반도체 실적', stock_code='005930'), ensure_ascii=False, indent=2))"
 ```
+
+### 7. 연결 작업
+- `stock_advice_workflow.py`
+  - `ParsedQuestion` 질문 분석 -> 주가 조회, 뉴스 데이터 Hybrid Search 등을 연결
+- `stock_context_service.py`
+  - 조회 결과를 분석 컨텍스트로 구성 (`content`, URL, 출처, 날짜, 검색 점수를 컨텍스트에 보존)
+- `stock_advice_service.py`
+  - 기존 템플릿 응답을 유지하며, 답변 생성 LLM 추가는 별도 작업

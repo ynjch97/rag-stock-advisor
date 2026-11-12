@@ -38,7 +38,22 @@ def question_analysis(monkeypatch):
     monkeypatch.setattr("src.parsers.stock_question_parser.analyze_stock_question", analyze)
 
 
-def test_run_stock_advice_workflow_generates_answer(monkeypatch):
+# 실제 뉴스 API·임베딩 호출을 막고 모의 수집 결과에 맞는 저장 일봉 제공
+@pytest.fixture(autouse=True)
+def saved_daily_prices_and_news(tmp_path, monkeypatch):
+    days = ["2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19",
+            "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"]
+    for code in ("005930", "000660", "034020"):
+        (tmp_path / f"{code}_daily.json").write_text(json.dumps([
+            {"stock_code": code, "base_date": day} for day in days
+        ]), encoding="utf-8")
+    monkeypatch.setattr(workflow, "get_raw_price_path", lambda code: tmp_path / f"{code}_daily.json")
+    search = Mock(return_value=[])
+    monkeypatch.setattr(workflow, "search_news_hybrid", search)
+    return search
+
+
+def test_run_stock_advice_workflow_generates_answer(monkeypatch, saved_daily_prices_and_news):
     monkeypatch.setattr(
         "src.parsers.stock_question_parser.load_stock_references",
         lambda: [{"stock_name": "삼성전자", "stock_code": "005930", "market": "KOSPI"}],
@@ -60,11 +75,12 @@ def test_run_stock_advice_workflow_generates_answer(monkeypatch):
     assert "등락률" not in answer
     assert "%" not in answer
     collector.assert_not_called()
+    saved_daily_prices_and_news.assert_not_called()
 
 
 # 실제 조회 분기의 현재가·종가·추세 전달과 등락률 비노출 검증
 @pytest.mark.parametrize("realtime", [True, False])
-def test_toss_workflow_passes_price_and_trend(monkeypatch, realtime):
+def test_toss_workflow_passes_price_and_trend(monkeypatch, realtime, saved_daily_prices_and_news):
     monkeypatch.setattr(
         "src.parsers.stock_question_parser.load_stock_references",
         lambda: [{"stock_name": "두산에너빌리티", "stock_code": "034020", "market": "KOSPI"}],
@@ -96,7 +112,12 @@ def test_toss_workflow_passes_price_and_trend(monkeypatch, realtime):
     assert context["stock_trend"]["recent_change_rate"] == -5.5
     assert context["question"]["recent_days"] == 3
     assert context["news"] == []
-    assert context["data_sources"] == {"stock": "toss", "news": "sample"}
+    assert context["data_sources"] == {"stock": "toss", "news": "hybrid_search"}
+    saved_daily_prices_and_news.assert_called_once_with(
+        "두산에너빌리티 최근 3거래일 사도 될까?", stock_code="034020",
+        start_date="2026-10-20" if realtime else "2026-10-21",
+        end_date="2026-10-23", app_settings=config,
+    )
     assert "최근 3거래일 하락" in answer
     assert "등락률" not in answer and "%" not in answer
     assert ("현재가는" if realtime else "2026-10-23 종가는") in answer
@@ -133,6 +154,7 @@ def test_toss_workflow_end_to_end(tmp_path, monkeypatch):
     raw_path = tmp_path / "raw" / "005930_daily.json"
     trend_path = tmp_path / "processed" / "005930_trend.json"
     monkeypatch.setattr("src.preprocessing.stock_preprocessor.get_processed_price_trend_path", lambda code: trend_path)
+    monkeypatch.setattr(workflow, "get_raw_price_path", lambda code: raw_path)
     config = replace(settings, stock_api_provider="toss", stock_api_url="https://example.test")
     manager = Mock()
     manager.get_access_token.return_value = "test-token"
@@ -172,7 +194,8 @@ def test_toss_workflow_end_to_end(tmp_path, monkeypatch):
         answer = run_stock_advice_workflow("삼성전자 최근 3거래일 사도 될까?", config)
     assert "현재가는 115원" in answer
     assert "최근 3거래일 상승" in answer
-    assert "샘플 뉴스 흐름은" in answer
+    assert "샘플 뉴스 흐름은" not in answer
+    assert "확인된 관련 뉴스는 없습니다." in answer
     assert "등락률" not in answer and "%" not in answer
     assert len(json.loads(raw_path.read_text(encoding="utf-8"))) == 3
     trend = json.loads(trend_path.read_text(encoding="utf-8"))[-1]
@@ -208,7 +231,7 @@ def test_multiple_stocks_are_passed_to_collectors(monkeypatch):
     assert [call.args[1] for call in collector.call_args_list] == ["005930", "000660"]
     assert "삼성전자" in answer and "SK하이닉스" in answer
     assert "삼성전자의 가격 흐름이 상대적으로 더 강했습니다" in answer
-    assert "실제 뉴스·공시 근거" in answer
+    assert "인과관계는 추가 확인" in answer
     assert "%" not in answer
 
 
@@ -227,3 +250,90 @@ def test_query_clarification_stops_execution(monkeypatch, period, clarification,
     monkeypatch.setattr(workflow, "collect_stock_price", collector)
     assert expected in run_stock_advice_workflow("질문", replace(settings, stock_api_provider="toss"))
     collector.assert_not_called()
+
+
+# 현재 의도들은 주가·뉴스가 모두 필요하며 비교 의도는 두 종목을 같은 조건으로 조회
+@pytest.mark.parametrize("intent", ["buy_opinion", "rise_reason", "decline_reason", "comparison_reason", "general_analysis"])
+def test_intents_connect_actual_news_and_response(monkeypatch, saved_daily_prices_and_news, intent):
+    stocks = (ParsedStock("삼성전자", "삼성전자", "005930"),)
+    if intent == "comparison_reason":
+        stocks += (ParsedStock("SK하이닉스", "SK하이닉스", "000660", "comparison"),)
+    parsed = ParsedQuestion("분석 질문", stocks, intent)
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    collector = Mock(side_effect=lambda name, code, **kwargs: DailyStock(
+        name, code, "2026-10-23", 100, 120, 90, 110, 1000, 10, 10,
+    ))
+    monkeypatch.setattr(workflow, "collect_stock_price", collector)
+    monkeypatch.setattr(workflow, "load_latest_stock_trend", lambda code, *args, **kwargs: StockTrend(
+        next(stock.stock_name for stock in stocks if stock.stock_code == code), code,
+        "2026-10-23", 5, 5, 3, 2, "최근 5거래일 상승",
+    ))
+
+    # 같은 기사에 속한 두 청크를 원래 검색 순위대로 제공
+    def search(question, **options):
+        return [{"chunk_id": f"{options['stock_code']}_{i}", "news_id": options["stock_code"],
+                 "stock_code": options["stock_code"], "title": "실적 기사", "content": f"근거 본문 {i}",
+                 "url": f"https://example.test/{options['stock_code']}", "publisher": "경제신문",
+                 "published_date": "2026-10-21", "chunk_index": i, "important": "O",
+                 "vector_score": 0.8, "keyword_score": 2, "vector_normalized_score": 1,
+                 "keyword_normalized_score": 1, "hybrid_score": 1} for i in (1, 2)]
+
+    saved_daily_prices_and_news.side_effect = search
+    sample = Mock(side_effect=AssertionError("Actual workflow must not use sample news"))
+    monkeypatch.setattr(workflow, "load_recent_sample_news", sample)
+    generator = Mock(wraps=workflow.generate_stock_advice)
+    comparison = Mock(wraps=workflow.generate_stock_comparison_advice)
+    monkeypatch.setattr(workflow, "generate_stock_advice", generator)
+    monkeypatch.setattr(workflow, "generate_stock_comparison_advice", comparison)
+    answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
+    assert collector.call_count == saved_daily_prices_and_news.call_count == len(stocks)
+    for call in saved_daily_prices_and_news.call_args_list:
+        assert call.args[0] == parsed.original_question
+        assert call.kwargs["start_date"] == "2026-10-19"
+        assert call.kwargs["end_date"] == "2026-10-23"
+    contexts = comparison.call_args.args[0] if len(stocks) > 1 else [generator.call_args.args[0]]
+    for context in contexts:
+        assert context["summary"] == {"news_count": 1, "news_chunk_count": 2}
+        assert context["news"][0]["hybrid_score"] == 1
+        assert context["data_sources"]["news"] == "hybrid_search"
+    assert "근거 본문 1" in answer and "근거 본문 2" in answer
+    assert "경제신문" in answer and "https://example.test/" in answer
+    assert "샘플 뉴스" not in answer
+    if intent == "rise_reason":
+        assert "상승은 확인되지만" in answer
+    sample.assert_not_called()
+
+
+# 실제 인덱스 오류를 샘플로 대체하거나 자동 수집하지 않음
+def test_hybrid_error_is_not_hidden(monkeypatch, saved_daily_prices_and_news):
+    parsed = ParsedQuestion("질문", (ParsedStock("삼성전자", "삼성전자", "005930"),), "general_analysis")
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    monkeypatch.setattr(workflow, "collect_stock_price", Mock(return_value=DailyStock(
+        "삼성전자", "005930", "2026-10-23", 100, 120, 90, 110, 1000, 10, 10,
+    )))
+    monkeypatch.setattr(workflow, "load_latest_stock_trend", Mock(return_value=StockTrend(
+        "삼성전자", "005930", "2026-10-23", 5, 5, 3, 2, "최근 5거래일 상승",
+    )))
+    saved_daily_prices_and_news.side_effect = FileNotFoundError("Missing index")
+    sample = Mock()
+    monkeypatch.setattr(workflow, "load_recent_sample_news", sample)
+    with pytest.raises(FileNotFoundError, match="Missing index"):
+        run_stock_advice_workflow("질문", replace(settings, stock_api_provider="toss"))
+    sample.assert_not_called()
+
+
+# 날짜 차이 대신 완료 일봉의 거래일 순서로 기간 결정하며 주말·휴일을 제외하지 않음
+def test_news_search_period_uses_saved_trading_days():
+    assert workflow._get_news_search_period("005930", 3, "2026-10-19", "2026-10-20") == (
+        "2026-10-15", "2026-10-20",
+    )
+
+
+# 부족하거나 기준일이 맞지 않는 저장 데이터로 임의 기간을 만들지 않음
+@pytest.mark.parametrize("days, completed, end", [
+    (20, "2026-10-23", "2026-10-23"), (5, "2026-10-24", "2026-10-24"),
+    (5, "2026-10-23", "2026-10-22"),
+])
+def test_news_search_period_rejects_insufficient_data(days, completed, end):
+    with pytest.raises(ValueError, match="insufficient"):
+        workflow._get_news_search_period("005930", days, completed, end)
