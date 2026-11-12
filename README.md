@@ -421,6 +421,26 @@ curl.exe -s "https://openapi.tossinvest.com/api/v1/stocks/all?market=KOSDAQ" `
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; print(json.dumps(parse_stock_question('유진로봇 최근 주가 전망?').to_dict(), ensure_ascii=False, indent=2))"
 ```
 
+#### 4-3-2. Agent Controller
+- 다음 작업 중에서 선택
+  - 데이터 충분함 : 응답 생성
+  - 데이터 부족 : 추가 필요한 작업만 선택하여 수집 절차 수행
+  - 검색 표현 부적절 : 질문을 재작성하여 기존 인덱스 재검색
+  - 한계 도달 : 부족한 근거를 명시하고 종료
+- 데이터 수집 판단 기준
+  - 주가 데이터 부족 : 시장 상태에 맞는 기준일, 완료 일봉 수, 추세 기준일 일치 여부
+  - 뉴스 데이터 부족 : 질문의 종목·기간에 맞는 서로 다른 기사 수와 내용 (청크 수 X)
+  - 뉴스 최신성 : 기사 발행일과 마지막 수집 시각을 함께 판단
+  - 질문 충족 여부 : 상승 원인, 전망, 비교 등에 필요한 근거가 실제로 있는지 LLM이 평가
+- 무한 반복과 비용 증가를 막도록 제한
+  - 재시도 or 도구 호출 횟수
+  - 질문 전체 Agent 결정 최대 3회
+  - 종목별 뉴스 수집 최대 2페이지(60건), 동일 페이지 중복 호출 금지
+  - 종목별 주가 추가 수집은 최대 1회
+  - 새 기사 or 근거가 늘지 않거나 검색 결과가 반복되면 조기 종료
+  - 최근 동일 조건으로 수집했지만 결과가 없었던 이력도 확인하여 반복 수집 방지
+  - 인덱싱 호출, 처리 청크 수, 요청 시간에도 별도 상한을 둠
+
 ### 4-4. Retriever Layer
 - 뉴스 데이터
   - 하이브리드 검색(Hybrid Search) 적용

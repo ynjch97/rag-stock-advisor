@@ -29,11 +29,11 @@ data/
 
   vector_store/
     faiss/
-      stock_advisor.index            # FAISS 벡터 인덱스 파일
-      stock_advisor_metadata.json    # FAISS 벡터와 원문 청크 매핑 메타데이터
+      stock_advisor.index           # FAISS 벡터 인덱스 파일
+      stock_advisor_metadata.json   # FAISS 벡터와 원문 청크 매핑 메타데이터
   
   bm25/
-    stock_advisor_tokens.json        # 동일 청크 목록의 ID, 토큰, BM25 설정
+    stock_advisor_tokens.json       # 동일 청크 목록의 ID, 토큰, BM25 설정
 
 src/
   __init__.py
@@ -46,12 +46,13 @@ src/
   app/
     __init__.py
     stock_advice_workflow.py        # 질문 분석부터 최종 응답까지 전체 흐름 실행
+    rag_indexing_workflow.py        # 수집/전처리/청킹/임베딩/FAISS 저장 흐름 실행
 
   domain/
     __init__.py
     stock_models.py                 # 주가 데이터 구조
     news_models.py                  # 뉴스 데이터 구조
-    advice_models.py                # 질문 분석 구조
+    advice_models.py                # 질문 분석, 실행 계획 구조
 
   data_loaders/
     __init__.py
@@ -95,6 +96,10 @@ src/
     hybrid_search.py                # Keyword Search + FAISS Vector Search 결합
     search_result_ranker.py         # 검색 결과 재정렬
 
+  agents/
+    __init__.py
+    stock_advisor_agent.py          # 최종 투자 판단 지원 Agent
+
   parsers/
     __init__.py
     llm_question_analyzer.py        # 사용자 질문을 OpenAI LLM 으로 분석/구조화
@@ -137,28 +142,13 @@ src/
 (추후 변동될 가능성 있음)
 
 ```
-main.py                              # CLI 기반 MVP 실행 진입점
-
-.env                                 # 환경변수 관리
-requirements.txt                     # Python 패키지 목록
-README.md                            # 개발 관련 내용
-AGENTS.md                            # 프로젝트 규칙
-
 data/
-  sample/
-    sample_stocks.json               # MVP용 샘플 주가 데이터
-    sample_news.json                 # MVP용 샘플 뉴스 데이터
-
   raw/
-    prices/                          # 수집한 원본 주가 데이터
-    news/                            # 수집한 원본 뉴스 데이터
     reports/                         # 수집한 원본 리포트 데이터
     disclosures/                     # 수집한 원본 공시 데이터
     financials/                      # 수집한 원본 재무 데이터
 
   processed/
-    prices/                          # 전처리된 주가 데이터
-    news/                            # 전처리된 뉴스 데이터
     reports/                         # 전처리된 리포트 데이터
     disclosures/                     # 전처리된 공시 데이터
     financials/                      # 전처리된 재무 데이터
@@ -171,11 +161,6 @@ data/
 
 src/
   __init__.py
-
-  app/
-    __init__.py
-    stock_advice_workflow.py         # 질문 분석부터 최종 응답까지 전체 흐름 실행
-    rag_indexing_workflow.py         # 수집/전처리/청킹/임베딩/FAISS 저장 흐름 실행
 
   domain/
     __init__.py
@@ -209,22 +194,6 @@ src/
     __init__.py
     document_chunker.py              # 문서 청킹
     chunk_strategy.py                # 토큰/문단/문장 기준 청킹 전략
-
-  search/
-    __init__.py
-    keyword_search.py                # 키워드/BM25 검색
-    vector_search.py                 # FAISS 벡터 유사도 검색
-    hybrid_search.py                 # Keyword Search + FAISS Vector Search 결합
-    search_result_ranker.py          # 검색 결과 재정렬
-
-  parsers/
-    __init__.py
-    stock_question_parser.py         # 사용자 질문에서 종목명, 의도, 기간 추출
-
-  services/
-    __init__.py
-    stock_context_service.py         # 주가/뉴스/Hybrid Search 결과를 분석 컨텍스트로 구성
-    stock_advice_service.py          # 자연어 투자 분석 응답 생성
 
   agents/
     __init__.py

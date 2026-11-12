@@ -50,3 +50,18 @@ class ParsedQuestion:
     # 질문·종목·기간을 컨텍스트 전달용 딕셔너리로 변환
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+# Controller가 선택한 다음 작업과 대상, 이유 (실행 및 횟수 제한은 workflow·Agent 담당)
+@dataclass(frozen=True)
+class AgentDecision:
+    # 응답 생성 / 주가 보충 / 뉴스 수집·인덱싱·재검색 / 기존 인덱스 재검색 / 종료
+    action: Literal["respond", "collect_stock", "collect_news", "search_news", "stop"]
+    reason: str
+    stock: ParsedStock | None = None  # 종목별 작업의 대상 (전체 응답·종료이면 생략 가능)
+    search_query: str | None = None  # 검색 표현을 바꾸는 경우 사용할 질문
+    news_start: Literal[1, 31] | None = None  # 뉴스 수집 시 첫 페이지 또는 추가 페이지
+
+    # 중첩된 대상 종목을 포함하여 실행 계획을 딕셔너리로 변환
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

@@ -254,10 +254,31 @@ BM25 score 3.669292259886812
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.search.hybrid_search import search_news_hybrid; print(json.dumps(search_news_hybrid('삼성전자 반도체 실적', stock_code='005930'), ensure_ascii=False, indent=2))"
 ```
 
-### 7. 연결 작업
+### 7. Agent Controller
+
+#### 질문과 응답 연결 작업
 - `stock_advice_workflow.py`
   - `ParsedQuestion` 질문 분석 -> 주가 조회, 뉴스 데이터 Hybrid Search 등을 연결
 - `stock_context_service.py`
   - 조회 결과를 분석 컨텍스트로 구성 (`content`, URL, 출처, 날짜, 검색 점수를 컨텍스트에 보존)
 - `stock_advice_service.py`
   - 기존 템플릿 응답을 유지하며, 답변 생성 LLM 추가는 별도 작업
+``` bash
+.\.venv\Scripts\python.exe -X utf8 -c "from src.app.stock_advice_workflow import run_stock_advice_workflow; print(run_stock_advice_workflow('SK하이닉스 최근 5거래일 분석'))"
+```
+
+#### 추가 수집을 위해 필요한 작업
+- `advice_models.py`
+  - `AgentDecision` 추가 : 대상 종목, 실행할 작업, 판단 이유
+- `news_collector.py`
+  - `start=1`, `start=31` 로 추가 수집 지원
+- `news_indexer.py`
+  - 최신성 판단용 이력(`수집 시각`)을 메타데이터에 보존하는 부분
+- `stock_advice_workflow.py`
+  - Agent의 결정을 실행하고 결과를 다시 전달하는 반복 흐름
+- `stock_context_service.py`
+  - 확보한 근거와 데이터 부족, 실패 사유를 응답 단계에 전달하는 부분
+- `stock_advisor_agent.py`
+  - 질문, 현재 데이터, 실행 이력을 보고 다음 작업을 결정하는 Controller
+- `rag_indexing_workflow.py`
+  - 뉴스 수집 -> 전처리 -> 청킹 -> 인덱싱을 조립하는 역할
