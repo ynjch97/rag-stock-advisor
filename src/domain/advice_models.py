@@ -4,6 +4,11 @@ from typing import Any, Literal
 from src.domain.stock_models import DEFAULT_RECENT_DAYS
 
 
+DEFAULT_DISCOVERY_RESULTS = 3
+MAX_DISCOVERY_RESULTS = 10
+
+
+# 대상 종목 정보
 @dataclass(frozen=True)
 class ParsedStock:
     mention: str
@@ -12,6 +17,7 @@ class ParsedStock:
     role: str = "subject"
 
 
+# 기간 정보
 @dataclass(frozen=True)
 class QueryPeriod:
     kind: Literal["default", "trading_days", "date_range"] = "default"
@@ -20,6 +26,38 @@ class QueryPeriod:
     end_date: str | None = None
 
 
+# 종목 추천 조건 (요청 개수는 임의로 상한에 맞춰 잘라내지 않음)
+@dataclass(frozen=True)
+class StockDiscoveryCriteria:
+    theme: str
+    requested_count: int = DEFAULT_DISCOVERY_RESULTS
+
+
+# 종목 추천 근거와 출처 (기사·공시 등에서 확인)
+@dataclass(frozen=True)
+class StockDiscoveryEvidence:
+    title: str
+    url: str
+    content: str
+    publisher: str | None = None
+    published_date: str | None = None
+
+
+# 종목 검색 후보 (코드 매핑과 사업 검증은 후속 발굴 서비스가 수행)
+@dataclass(frozen=True)
+class StockDiscoveryCandidate:
+    stock_name: str
+    selection_reason: str
+    evidence: tuple[StockDiscoveryEvidence, ...] = ()
+    stock_code: str | None = None
+    business_verified: bool = False
+
+    # 원문 근거를 포함한 후보 정보를 딕셔너리로 변환
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+# 질문 분석
 @dataclass(frozen=True)
 class ParsedQuestion:
     original_question: str
@@ -29,15 +67,20 @@ class ParsedQuestion:
     needs_clarification: bool = False
     clarification_question: str | None = None
     openai_call_attempts: int = 0
+    discovery: StockDiscoveryCriteria | None = None
 
     # 기존 단일 종목 호출부에서 첫 종목명 참조 지원
     @property
     def stock_name(self) -> str:
+        if not self.stocks:
+            raise ValueError("No specified stock; discovery questions require candidate discovery first.")
         return self.stocks[0].stock_name
 
     # 검증된 첫 종목코드 참조 지원
     @property
     def stock_code(self) -> str:
+        if not self.stocks:
+            raise ValueError("No specified stock; discovery questions require candidate discovery first.")
         return self.stocks[0].stock_code
 
     # 날짜 범위의 임의 거래일 환산 방지
@@ -56,7 +99,7 @@ class ParsedQuestion:
 @dataclass(frozen=True)
 class AgentDecision:
     # 응답 생성 / 주가 보충 / 뉴스 수집·인덱싱·재검색 / 기존 인덱스 재검색 / 종료
-    action: Literal["respond", "collect_stock", "collect_news", "search_news", "stop"]
+    action: Literal["respond", "collect_stock", "collect_news", "search_news", "discover_stocks", "stop"]
     reason: str
     stock: ParsedStock | None = None  # 종목별 작업의 대상 (전체 응답·종료이면 생략 가능)
     search_query: str | None = None  # 검색 표현을 바꾸는 경우 사용할 질문

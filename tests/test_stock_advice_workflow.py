@@ -11,7 +11,7 @@ from src.app.stock_advice_workflow import run_stock_advice_workflow
 from src.collectors.stock_collector import collect_stock_price
 from src.config.settings import settings
 from src.domain.stock_models import DailyStock, RealtimeStock, StockTrend
-from src.domain.advice_models import AgentDecision, ParsedQuestion, ParsedStock, QueryPeriod
+from src.domain.advice_models import AgentDecision, ParsedQuestion, ParsedStock, QueryPeriod, StockDiscoveryCriteria
 from src.parsers.llm_question_analyzer import QuestionAnalysis
 
 
@@ -30,6 +30,7 @@ def question_analysis(monkeypatch):
     def analyze(question, *args):
         name, intent, days = cases[question]
         return QuestionAnalysis.model_validate({
+            "discovery": None,
             "stocks": [{"mention": name, "stock_name": name, "role": "subject"}],
             "intent": intent, "period": {"kind": "default" if days is None else "trading_days",
                 "recent_days": days, "start_date": None, "end_date": None},
@@ -341,3 +342,18 @@ def test_news_search_period_uses_saved_trading_days():
 def test_news_search_period_rejects_insufficient_data(days, completed, end):
     with pytest.raises(ValueError, match="insufficient"):
         workflow._get_news_search_period("005930", days, completed, end)
+
+
+# 파서만 확장된 단계에서는 빈 종목을 기존 비교·Agent 흐름으로 넘기지 않음
+def test_discovery_stops_before_unimplemented_execution(monkeypatch, saved_daily_prices_and_news):
+    parsed = ParsedQuestion("반도체 소재 관련주 3개 추천", (), "stock_discovery",
+                            discovery=StockDiscoveryCriteria("반도체 소재", 3))
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    collector, agent = Mock(), Mock()
+    monkeypatch.setattr(workflow, "collect_stock_price", collector)
+    monkeypatch.setattr(workflow, "decide_next_action", agent)
+    answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
+    assert "후보 검색·추천 기능은 아직 연결되지" in answer
+    collector.assert_not_called()
+    saved_daily_prices_and_news.assert_not_called()
+    agent.assert_not_called()

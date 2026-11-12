@@ -28,13 +28,19 @@ class AnalyzedPeriod(_StrictModel):
     end_date: str | None
 
 
+class AnalyzedDiscovery(_StrictModel):
+    theme: str | None = Field(max_length=500)
+    requested_count: int | None = Field(ge=1)
+
+
 class QuestionAnalysis(_StrictModel):
     _openai_call_attempts: int = PrivateAttr(default=0)
     stocks: list[AnalyzedStock] = Field(max_length=10)
-    intent: Literal["buy_opinion", "rise_reason", "decline_reason", "comparison_reason", "general_analysis"]
+    intent: Literal["buy_opinion", "rise_reason", "decline_reason", "comparison_reason", "general_analysis", "stock_discovery"]
     period: AnalyzedPeriod
     needs_clarification: bool
     clarification_question: str | None
+    discovery: AnalyzedDiscovery | None
 
     # LLM 출력 스키마에 포함하지 않는 실제 HTTP 요청 횟수 반환
     @property
@@ -68,9 +74,16 @@ ANALYSIS_INSTRUCTIONS = """사용자의 국내 주식 질문을 분석하여 sub
 예: 삼전=삼성전자, 하이닉스=SK하이닉스. 코드는 생성하지 않는다.
 코드만 질문에 있으면 mention에 코드를 넣고 stock_name은 null로 둘 수 있다.
 모든 종목을 원문 순서대로 추출한다. A가 B보다라는 비교는 A=target, B=comparison이다.
-종목이 없거나 모호하면 확인 질문을 만든다. 불명확한 종목을 임의로 확정하지 않는다.
+지정 종목 분석에서 종목이 없거나 모호하면 확인 질문을 만든다. 불명확한 종목을 임의로 확정하지 않는다.
 매수 판단=buy_opinion, 상승 원인=rise_reason, 하락 원인=decline_reason,
-종목 비교=comparison_reason, 그 외=general_analysis이다.
+종목 비교=comparison_reason, 조건에 맞는 새 종목 발굴=stock_discovery, 그 외=general_analysis이다.
+예: '반도체 소재 관련주 종목 3가지만 추천해줘'는 stock_discovery이며 discovery.theme='반도체 소재',
+discovery.requested_count=3이다. 특정 종목의 매수 의견은 buy_opinion이며 종목 발굴과 구분한다.
+발굴 질문의 stocks에는 질문에 실제 등장한 기준 종목만 넣고, 없으면 빈 배열로 둔다.
+추천할 후보 종목은 이 단계에서 생성하지 않는다. 종목명이 없다는 이유만으로 발굴 질문에 확인을 요구하지 않는다.
+discovery는 발굴 질문에서만 지정하고 나머지 의도에서는 null이다.
+발굴 개수 미지정은 requested_count=null이며 기간의 recent_days와 혼동하지 않는다.
+요청 개수를 임의로 축소하지 않는다. 테마·조건이 불명확하거나 0개·음수 개수이면 확인 질문을 만든다.
 기간 미지정은 kind=default, recent_days=null이다. 명시한 n거래일은 trading_days이다.
 최근 n일·주·월·올해·명시 날짜 등 달력 기간은 date_range이며 거래일 수로 환산하지 않는다.
 제공한 한국 기준일로 날짜를 YYYY-MM-DD 형식으로 계산한다.
@@ -98,7 +111,7 @@ def analyze_stock_question(
             instructions=ANALYSIS_INSTRUCTIONS + f"\n한국 기준일: {reference_date.isoformat()}",
             input=question, tools=[{
                 "type": "function", "name": TOOL_NAME,
-                "description": "질문의 종목 후보, 의도, 기간, 확인 필요 여부를 제출한다.",
+                "description": "질문의 지정 종목, 의도, 기간, 발굴 조건, 확인 필요 여부를 제출한다.",
                 "parameters": QuestionAnalysis.model_json_schema(), "strict": True,
             }],
             tool_choice={"type": "function", "name": TOOL_NAME},

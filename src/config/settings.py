@@ -33,6 +33,8 @@ class Settings:
     agent_max_decisions: int = 3
     agent_max_news_pages: int = 2
     agent_max_stock_refreshes: int = 1
+    agent_max_discoveries: int = 1  # 질문당 종목 발굴 횟수
+    agent_max_discovery_candidates: int = 10  # 발굴 시 검토할 후보 수 상한
     agent_max_indexing_calls: int = 2
     agent_max_index_chunks: int = 1000  # 인덱싱 1회 처리량 1,000청크
     agent_max_index_characters: int = 500000  # 인덱싱 1회 처리량 50만 문자
@@ -83,6 +85,8 @@ def load_settings(env_path: Path = ENV_PATH) -> Settings:
         agent_max_decisions=get_limit("AGENT_MAX_DECISIONS", 3),
         agent_max_news_pages=min(2, get_limit("AGENT_MAX_NEWS_PAGES", 2)),
         agent_max_stock_refreshes=get_limit("AGENT_MAX_STOCK_REFRESHES", 1),
+        agent_max_discoveries=get_limit("AGENT_MAX_DISCOVERIES", 1),
+        agent_max_discovery_candidates=get_limit("AGENT_MAX_DISCOVERY_CANDIDATES", 10),
         agent_max_indexing_calls=get_limit("AGENT_MAX_INDEXING_CALLS", 2),
         agent_max_index_chunks=get_limit("AGENT_MAX_INDEX_CHUNKS", 1000),
         agent_max_index_characters=get_limit("AGENT_MAX_INDEX_CHARACTERS", 500000),

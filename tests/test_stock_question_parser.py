@@ -39,6 +39,7 @@ def references(monkeypatch):
     def analyze(question, *args):
         mention, name, intent, days = cases[question]
         return QuestionAnalysis.model_validate({
+            "discovery": None,
             "stocks": [{"mention": mention, "stock_name": name, "role": "subject"}],
             "intent": intent, "period": {"kind": "default" if days is None else "trading_days",
                 "recent_days": days, "start_date": None, "end_date": None},
@@ -153,6 +154,7 @@ def test_invalid_recent_days(days):
 # 별칭 두 개를 LLM으로 해석한 뒤 기준정보 코드와 비교 역할 확정
 def test_llm_aliases_and_multiple_stocks(monkeypatch, references):
     analysis = QuestionAnalysis.model_validate({
+        "discovery": None,
         "stocks": [
             {"mention": "삼전", "stock_name": "삼성전자", "role": "target"},
             {"mention": "하이닉스", "stock_name": "SK하이닉스", "role": "comparison"},
@@ -174,6 +176,7 @@ def test_llm_aliases_and_multiple_stocks(monkeypatch, references):
 # 달력 기간을 보존하고 현재 조회용 거래일 수로 임의 변환하지 않음
 def test_calendar_period_is_preserved(monkeypatch):
     analysis = QuestionAnalysis.model_validate({
+        "discovery": None,
         "stocks": [{"mention": "삼성전자", "stock_name": "삼성전자", "role": "subject"}],
         "intent": "general_analysis",
         "period": {"kind": "date_range", "recent_days": None, "start_date": "2026-09-26", "end_date": "2026-10-26"},
@@ -190,6 +193,7 @@ def test_calendar_period_is_preserved(monkeypatch):
 # 질문에 없는 원문 표현을 모델이 만들어내면 조회 차단
 def test_hallucinated_mention_is_rejected(monkeypatch):
     analysis = QuestionAnalysis.model_validate({
+        "discovery": None,
         "stocks": [{"mention": "하이닉스", "stock_name": "SK하이닉스", "role": "subject"}],
         "intent": "general_analysis",
         "period": {"kind": "default", "recent_days": None, "start_date": None, "end_date": None},
@@ -204,6 +208,7 @@ def test_hallucinated_mention_is_rejected(monkeypatch):
 @pytest.mark.parametrize("case", ["normal", "clarification", "unknown", "comparison"])
 def test_openai_attempts_in_parsed_output(monkeypatch, case):
     analysis = QuestionAnalysis.model_validate({
+        "discovery": None,
         "stocks": [{"mention": "삼전", "stock_name": "삼성전자", "role": "subject"}],
         "intent": "comparison_reason" if case == "comparison" else "general_analysis",
         "period": {"kind": "default", "recent_days": None, "start_date": None, "end_date": None},
@@ -215,3 +220,126 @@ def test_openai_attempts_in_parsed_output(monkeypatch, case):
     assert parsed.openai_call_attempts == 2
     assert parsed.to_dict()["openai_call_attempts"] == 2
     assert parsed.needs_clarification == (case != "normal")
+
+
+# 후보를 만들지 않고 발굴 조건만 내놓는 LLM 분석 대역
+def _discovery_analysis(discovery, **options):
+    payload = {
+        "stocks": [], "intent": "stock_discovery", "discovery": discovery,
+        "period": {"kind": "default", "recent_days": None, "start_date": None, "end_date": None},
+        "needs_clarification": False, "clarification_question": None,
+    }
+    return QuestionAnalysis.model_validate({**payload, **options})
+
+
+# 종목이 없어도 테마·요청 개수로 정상 파싱하며 기준정보·외부 수집을 호출하지 않음
+def test_discovery_without_specified_stock(monkeypatch, references):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 3})
+    analysis._openai_call_attempts = 2
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("반도체 소재 관련주 종목 3가지만 추천해줘")
+    assert parsed.intent == "stock_discovery"
+    assert parsed.stocks == () and not parsed.needs_clarification
+    assert parsed.to_dict()["discovery"] == {"theme": "반도체 소재", "requested_count": 3}
+    assert parsed.recent_days == 5
+    assert parsed.openai_call_attempts == 2
+    references[0].assert_not_called()
+    references[1].assert_not_called()
+    with pytest.raises(ValueError, match="discovery"):
+        _ = parsed.stock_code
+
+
+# 개수 미지정은 기본 3개이며 작은 명시 개수는 유지
+@pytest.mark.parametrize("count,expected", [(None, 3), (1, 1), (2, 2), (3, 3), (5, 5), (10, 10)])
+def test_discovery_requested_count(monkeypatch, count, expected):
+    analysis = _discovery_analysis({"theme": " 반도체 소재 ", "requested_count": count})
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("반도체 소재 관련주 추천")
+    assert parsed.discovery.theme == "반도체 소재"
+    assert parsed.discovery.requested_count == expected
+    assert not parsed.needs_clarification
+
+
+# 상한 초과 요청은 잘라내지 않고 원래 개수를 보존하여 확인 요청
+def test_discovery_count_over_limit_requires_clarification(monkeypatch, references):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 11})
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("반도체 소재 관련주 11개 추천")
+    assert parsed.needs_clarification
+    assert parsed.discovery.requested_count == 11
+    assert "최대 10개" in parsed.clarification_question
+    references[0].assert_not_called()
+    references[1].assert_not_called()
+
+
+# 테마가 없으면 발굴 의도를 유지하면서 조건 확인만 요청
+@pytest.mark.parametrize("criteria", [None, {"theme": None, "requested_count": 3},
+                                      {"theme": " ", "requested_count": 3}])
+def test_discovery_missing_theme(monkeypatch, references, criteria):
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=_discovery_analysis(criteria)))
+    parsed = parse_stock_question("관련주 3개 추천")
+    assert parsed.needs_clarification and parsed.intent == "stock_discovery"
+    assert parsed.discovery is None
+    assert "업종·테마" in parsed.clarification_question
+    references[0].assert_not_called()
+
+
+# LLM의 확인 필요 판단과 추출 가능한 조건은 함께 보존
+def test_discovery_preserves_llm_clarification(monkeypatch):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 3},
+                                   needs_clarification=True, clarification_question="어떤 소재 분야인가요?")
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("반도체 소재 관련주 추천")
+    assert parsed.clarification_question == "어떤 소재 분야인가요?"
+    assert parsed.discovery.theme == "반도체 소재"
+
+
+# 발굴 질문에 실제 등장한 기준 종목은 기존 별칭·코드 검증을 그대로 적용
+def test_discovery_with_reference_stock(monkeypatch, references):
+    analysis = _discovery_analysis({"theme": "삼성전자 관련 반도체 소재", "requested_count": 2},
+                                   stocks=[{"mention": "삼전", "stock_name": "삼성전자", "role": "subject"}])
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("삼전 관련 반도체 소재주 2개 추천")
+    assert parsed.stock_code == "005930" and parsed.discovery.requested_count == 2
+    assert not parsed.needs_clarification
+    references[0].assert_called_once()
+    references[1].assert_not_called()
+
+
+# 추천 후보를 질문 속 종목으로 위장한 출력은 기준정보 조회 전에 차단
+def test_discovery_cannot_inject_candidate_stocks(monkeypatch, references):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 3},
+                                   stocks=[{"mention": "하이닉스", "stock_name": "SK하이닉스", "role": "subject"}])
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    with pytest.raises(ValueError, match="원문 표현"):
+        parse_stock_question("반도체 소재 관련주 3개 추천")
+    references[0].assert_not_called()
+    references[1].assert_not_called()
+
+
+# 발굴 개수와 기간은 독립 필드이며 달력 기간을 임의의 거래일 수로 바꾸지 않음
+def test_discovery_preserves_explicit_period(monkeypatch):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 3}, period={
+        "kind": "date_range", "recent_days": None, "start_date": "2026-10-01", "end_date": "2026-10-31",
+    })
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    parsed = parse_stock_question("지난달 반도체 소재 관련주 3개 추천", reference_date=date(2026, 11, 13))
+    assert parsed.period.start_date == "2026-10-01"
+    assert parsed.discovery.requested_count == 3
+    with pytest.raises(ValueError, match="date range"):
+        _ = parsed.recent_days
+
+
+# 일반 분석에 발굴 조건을 섞은 불일치 출력 거부
+def test_non_discovery_intent_rejects_discovery_criteria(monkeypatch):
+    analysis = _discovery_analysis({"theme": "반도체 소재", "requested_count": 3}, intent="general_analysis")
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    with pytest.raises(ValueError, match="Only stock_discovery"):
+        parse_stock_question("삼성전자 전망")
+
+
+# 기존 지정 종목 분석은 여전히 종목 누락을 확인 질문으로 처리
+def test_missing_stock_in_analysis_still_requires_clarification(monkeypatch):
+    analysis = _discovery_analysis(None, intent="general_analysis")
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+    assert parse_stock_question("주가 전망").needs_clarification

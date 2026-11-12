@@ -17,6 +17,7 @@ from src.parsers.llm_question_analyzer import TOOL_NAME, analyze_stock_question
 @pytest.fixture
 def analysis_payload():
     return {
+        "discovery": None,
         "stocks": [{"mention": "삼전", "stock_name": "삼성전자", "role": "subject"}],
         "intent": "buy_opinion",
         "period": {"kind": "default", "recent_days": None, "start_date": None, "end_date": None},
@@ -55,6 +56,42 @@ def test_analyzer_uses_strict_function_calling(analysis_payload):
         assert definition["additionalProperties"] is False
         assert set(definition["required"]) == set(definition["properties"])
     client.close.assert_not_called()
+
+
+# 종목 발굴은 종목 없이 테마·개수만 Tool Calling 결과로 수신
+def test_analyzer_accepts_discovery_conditions(analysis_payload):
+    analysis_payload.update(stocks=[], intent="stock_discovery",
+                            discovery={"theme": "반도체 소재", "requested_count": 3})
+    client = _client(analysis_payload)
+    result = analyze_stock_question("반도체 소재 관련주 3개 추천", date(2026, 11, 13), client=client)
+    assert result.stocks == []
+    assert result.discovery.theme == "반도체 소재"
+    assert result.discovery.requested_count == 3
+    assert "stock_discovery" in client.responses.create.call_args.kwargs["tools"][0]["parameters"]["properties"]["intent"]["enum"]
+    assert result.openai_call_attempts == 1
+
+
+# 모델은 개수 미지정 시 null을 반환하고 기본값 지정은 Python 파서가 담당
+def test_analyzer_preserves_unspecified_discovery_count(analysis_payload):
+    analysis_payload.update(stocks=[], intent="stock_discovery",
+                            discovery={"theme": "반도체 소재", "requested_count": None})
+    result = analyze_stock_question("반도체 소재 관련주 추천", date(2026, 11, 13), client=_client(analysis_payload))
+    assert result.discovery.requested_count is None
+
+
+# 잘못된 개수·주입한 후보 목록·불완전한 discovery 구조를 strict 스키마로 거부
+@pytest.mark.parametrize("discovery", [
+    {"theme": "반도체 소재", "requested_count": 0},
+    {"theme": "반도체 소재", "requested_count": -1},
+    {"theme": "반도체 소재", "requested_count": True},
+    {"theme": "반도체 소재", "requested_count": "3"},
+    {"theme": "반도체 소재"},
+    {"theme": "반도체 소재", "requested_count": 3, "candidates": ["삼성전자"]},
+])
+def test_analyzer_rejects_invalid_discovery(analysis_payload, discovery):
+    analysis_payload.update(stocks=[], intent="stock_discovery", discovery=discovery)
+    with pytest.raises(ValueError, match="구조"):
+        analyze_stock_question("반도체 소재 관련주 추천", date(2026, 11, 13), client=_client(analysis_payload))
 
 
 # 키 누락 시 네트워크 호출 전에 설정 안내

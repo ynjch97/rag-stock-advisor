@@ -296,11 +296,13 @@ BM25 score 3.669292259886812
 ### 8. 질문 의도 추가
 
 #### 종목 추천
-- 질문당 발굴 1회, 검토 후보 최대 10개, 최종 반환 최대 3개
+- `settings.py`
+  - 질문당 발굴 1회, 검토 후보 최대 10개
 - `llm_question_analyzer.py`
   - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
 - `advice_models.py`
-  - 종목 발굴 조건, 후보, 근거 구조와 `discover_stocks` 작업 추가
+  - 종목 발굴 조건, 후보, 근거 구조와 작업 의도(`discover_stocks`) 추가
+  - 최종 반환 후보 수 : 사용자 요청에 따름 (초기 설정 3개, 최대 10개)
 - `stock_question_parser.py`
   - 발굴 질문은 종목명이 없어도 정상 처리하는 분기
   - 기존 지정 종목 검증은 유지
