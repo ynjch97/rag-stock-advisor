@@ -2,6 +2,7 @@ from dataclasses import replace
 from email.utils import parsedate_to_datetime
 import re
 import time
+from typing import Any
 
 import httpx
 from openai import OpenAI
@@ -52,15 +53,18 @@ def _prepare_discovery_articles(payload: dict, deadline: float) -> list[StockDis
     return articles
 
 
-# 테마 뉴스에서 검토 후보를 찾고 상장 종목·원문 인용·직접 사업 연관성을 확인한 결과만 반환
+# 테마 뉴스 한 페이지를 조회하고 검증 후보(candidates)·페이지 정보(collection)를 반환
 def discover_stocks(
     criteria: StockDiscoveryCriteria, *, start_date: str | None = None, end_date: str | None = None,
     app_settings: Settings = settings, stock_infos: list[dict[str, str]] | None = None,
     client: OpenAI | None = None, http_client: httpx.Client | None = None, deadline: float | None = None,
-) -> list[StockDiscoveryCandidate]:
+    start: int = 1,
+) -> dict[str, Any]:
     if (not isinstance(criteria.theme, str) or not criteria.theme.strip() or len(criteria.theme.strip()) > 500
             or type(criteria.requested_count) is not int or not 1 <= criteria.requested_count <= MAX_DISCOVERY_RESULTS):
         raise ValueError("Discovery requires a theme and requested_count between 1 and 10.")
+    if type(start) is not int or start not in (1, 31):
+        raise ValueError("Discovery start must be 1 or 31.")
     limit = app_settings.agent_max_discovery_candidates
     if type(limit) is not int or not 1 <= limit <= 10:
         raise ValueError("AGENT_MAX_DISCOVERY_CANDIDATES must be between 1 and 10.")
@@ -81,13 +85,16 @@ def discover_stocks(
         if re.fullmatch(r"[A-Za-z0-9]{6}", code):
             by_name.setdefault(_normalize_stock_name(name), {})[code] = record
     if not by_name:
-        return []
-    payload = collect_theme_news(criteria.theme.strip(), start_date, end_date,
-        app_settings=app_settings, http_client=http_client, start=1, deadline=deadline)
+        return {"candidates": [], "collection": {"start": start, "next_start": None}}
+    query = criteria.theme.strip()
+    if "관련주" not in query:
+        query += " 관련주"
+    payload = collect_theme_news(query, start_date, end_date,
+        app_settings=app_settings, http_client=http_client, start=start, deadline=deadline)
     articles = _prepare_discovery_articles(payload, deadline)
     # 1. 후보 추출에 사용할 기사 부재를 확인 (분석 가능한 원문이 없으면 true, 빈 후보 목록 반환)
     if not articles:
-        return []
+        return {"candidates": [], "collection": payload["collection"]}
     analysis = analyze_discovery_candidates(criteria, articles, limit,
         app_settings=app_settings, client=client, deadline=deadline)
     remaining_timeout(deadline)
@@ -135,4 +142,4 @@ def discover_stocks(
             candidates[code] = StockDiscoveryCandidate(stock_name=record["stock_name"], stock_code=code,
                 selection_reason=item.selection_reason.strip(), evidence=tuple(evidence), business_verified=True)
     # 요청 개수는 최종 선택 단계에서 적용; 여기서는 최대 검토 후보 수만 제한
-    return list(candidates.values())[:limit]
+    return {"candidates": list(candidates.values())[:limit], "collection": payload["collection"]}

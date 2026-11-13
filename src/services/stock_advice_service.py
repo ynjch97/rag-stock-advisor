@@ -10,6 +10,7 @@ def generate_stock_advice(context: StockContext) -> str:
     question = context["question"]
     summary = context["summary"]
     news = context["news"]
+    discovery = context.get("discovery_candidate")
 
     stock_overview = _build_stock_overview(stock)
     news_overview = _build_news_overview(summary)
@@ -23,6 +24,10 @@ def generate_stock_advice(context: StockContext) -> str:
             f"[{stock['stock_name']} 간단 분석]",
             "",
             stock_overview,
+            *([f"발굴 이유: {discovery['selection_reason']}", *[
+                f"- 발굴 출처: {item['title']} | {item['url']}"
+                for item in discovery["evidence"]
+            ]] if discovery else []),
             news_overview,
             key_news,
             "",

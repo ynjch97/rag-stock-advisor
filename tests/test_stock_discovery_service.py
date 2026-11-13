@@ -21,7 +21,8 @@ REFERENCES = [{"stock_name": "소재기업A", "stock_code": "000001", "market": 
 # 원문 추출 성공·발행 시각·출처를 갖춘 수집 응답
 @pytest.fixture
 def payload():
-    return {"items": [{"title": "소재기업A 사업", "originallink": "https://www.hankyung.com/article/1",
+    return {"collection": {"query": "반도체 소재 관련주", "start": 1, "next_start": None},
+        "items": [{"title": "소재기업A 사업", "originallink": "https://www.hankyung.com/article/1",
         "description": "요약", "pubDate": "Thu, 05 Nov 2026 12:00:00 +0900",
         "original_article": {"status": "success", "body": QUOTE + " 추가 상세 본문.",
                              "publisher": "한국경제"}}]}
@@ -48,7 +49,7 @@ def dependencies(monkeypatch, payload):
 def _discover(**kwargs):
     options = {"stock_infos": REFERENCES, "client": Mock()}
     options.update(kwargs)
-    return service.discover_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)
+    return service.discover_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)["candidates"]
 
 
 # 기준정보 코드와 원문 전체·인용·출처를 보존하며 최종 개수와 검토 상한을 분리
@@ -64,7 +65,7 @@ def test_verified_candidate(dependencies):
     assert candidate.evidence[0].published_date == "2026-11-05"
     assert candidate.evidence[0].publisher == "한국경제"
     assert analyze.call_args.args[2] == 10
-    assert collect.call_args.args == ("반도체 소재", "2026-11-01", "2026-11-05")
+    assert collect.call_args.args == ("반도체 소재 관련주", "2026-11-01", "2026-11-05")
     assert collect.call_args.kwargs["start"] == 1
     collect.assert_called_once()
 
@@ -174,7 +175,7 @@ def test_mocked_end_to_end(monkeypatch, payload):
     # 검색 응답·robots.txt·기사 HTML만 제공
     def respond(request):
         if request.url.host == "openapi.naver.com":
-            assert request.url.params["query"] == "반도체 소재"
+            assert request.url.params["query"] == "반도체 소재 관련주"
             return httpx.Response(200, json=payload)
         text = "User-agent: *\nDisallow:\n" if request.url.path == "/robots.txt" else "<article>본문</article>"
         return httpx.Response(200, text=text)
@@ -185,3 +186,49 @@ def test_mocked_end_to_end(monkeypatch, payload):
     assert result[0].stock_code == "000001"
     assert result[0].evidence[0].excerpt == QUOTE
     connection.responses.create.assert_called_once()
+
+
+# 검색어에 관련주를 한 번만 추가하고 요청된 페이지를 그대로 전달
+@pytest.mark.parametrize("theme,expected", [
+    ("반도체 소재", "반도체 소재 관련주"),
+    (" 반도체 소재 관련주 ", "반도체 소재 관련주"),
+    ("반도체관련주 소재", "반도체관련주 소재"),
+])
+def test_discovery_query_and_second_page(dependencies, payload, theme, expected):
+    payload["collection"] = {"query": expected, "start": 31, "next_start": None, "returned_count": 1}
+    result = service.discover_stocks(StockDiscoveryCriteria(theme, 3), start=31,
+        stock_infos=REFERENCES, client=Mock())
+    assert dependencies[0].call_args.args[0] == expected
+    assert dependencies[0].call_args.kwargs["start"] == 31
+    assert len(result["candidates"]) == 1
+    assert result["collection"] == payload["collection"]
+    assert dependencies[1].call_args.args[0].theme == theme
+
+
+# 원문 미확보·코드 불일치·LLM 후보 없음도 다음 페이지 정보를 유실하지 않음
+@pytest.mark.parametrize("empty_stage", ["body", "mapping", "llm"])
+def test_empty_discovery_preserves_next_page(dependencies, payload, empty_stage):
+    payload["collection"] = {"query": "반도체 소재 관련주", "start": 1,
+                             "next_start": 31, "returned_count": 30}
+    if empty_stage == "body":
+        payload["items"][0]["original_article"]["status"] = "unsupported_publisher"
+    elif empty_stage == "mapping":
+        dependencies[1].return_value = _analysis(name="없는기업")
+    else:
+        dependencies[1].return_value = DiscoveryAnalysis(candidates=[])
+    result = service.discover_stocks(StockDiscoveryCriteria("반도체 소재", 3),
+                                    stock_infos=REFERENCES, client=Mock())
+    assert result["candidates"] == []
+    assert result["collection"]["next_start"] == 31
+    dependencies[0].assert_called_once()
+    if empty_stage == "body":
+        dependencies[1].assert_not_called()
+
+
+# 지원하지 않는 페이지는 네이버·LLM 요청 전에 차단
+@pytest.mark.parametrize("start", [0, 2, 61, True, "31"])
+def test_discovery_rejects_invalid_start(dependencies, start):
+    with pytest.raises(ValueError, match="start"):
+        _discover(start=start)
+    dependencies[0].assert_not_called()
+    dependencies[1].assert_not_called()

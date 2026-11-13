@@ -21,7 +21,7 @@ def build_stock_context(
         (item.get("stock_code"), item.get("url") or item.get("news_id")
          or (item["title"], item["published_date"])) for item in news
     }
-    return {
+    context = {
         "question": {
             "original_question": parsed_question.original_question,
             "intent": parsed_question.intent,
@@ -39,6 +39,11 @@ def build_stock_context(
         "summary": {"news_count": len(article_keys), "news_chunk_count": len(news)},
         "issues": list(issues or []),
     }
+    candidate = next((item for item in parsed_question.discovered_candidates
+                      if item.stock_code == stock_data.get("stock_code")), None)
+    if candidate is not None:
+        context["discovery_candidate"] = candidate.to_dict()
+    return context
 
 
 # 응답 생성에 필요한 뉴스 필드만 추림

@@ -314,16 +314,37 @@ BM25 score 3.669292259886812
 - `news_collector.py`
   - 종목코드 없이 테마로 검색하는 `collect_theme_news()` 추가
 - `stock_advisor_agent.py`
-  - 발굴 필요성 판단과 `discover_stocks` 선택 추가
+  - 발굴 필요성 판단 + 선택 가능한 작업에 `discover_stocks` 추가
 - `stock_advice_workflow.py`
-  - 종목 확정 전 발굴 -> 검증된 후보의 기존 분석 흐름 연결
+  - 종목 발굴 -> `discover_stocks(parsed.discovery)` -> 검증된 후보와 실행 이력을 보존 -> 기존 분석 흐름에 연결
 - 컨텍스트·응답 서비스 : 후보별 선정 근거·출처·위험 요인을 전달하고 표시
 
+#### 종목 분석 & 종목 추천 흐름 정리
+- `stock_advice_workflow.py` -> `_run_agent_loop()`
+- `_allowed_agent_actions()`  : 지금 실행 가능한 작업, 페이지 계산
+- `decide_next_action()` : Agent 가 작업 하나 선택 -> 실행
+- 추가 페이지가 허용되면 다음 반복에서 Agent 가 다시 선택
+``` plain
+[기존 종목 분석 흐름 : collect_news]
+src\app\stock_advice_workflow.py
+src\app\rag_indexing_workflow.py > collect_and_index_news()
+src\collectors\news_collector.py > collect_and_save_news()
+
+[추가된 종목 추천 흐름 : discover_stocks]
+src\app\stock_advice_workflow.py
+src\services\stock_discovery_service.py > discover_stocks()
+src\collectors\news_collector.py > collect_theme_news()
+```
+
 #### 테스트
+- 조회된 뉴스 목록, 추출되는 후보 목록
 ``` bash
 # 키워드로 검색된 기사 조회
-.\.venv\Scripts\python.exe -X utf8 -c "from collections import Counter; from src.collectors.news_collector import collect_theme_news; p = collect_theme_news('반도체 소재'); print('검색 건수:', len(p['items'])); print('원문 상태:', dict(Counter(i.get('original_article', {}).get('status') for i in p['items']))); print('원문 확보 기사:', [i['title'] for i in p['items'] if i.get('original_article', {}).get('status') == 'success'])"
+.\.venv\Scripts\python.exe -X utf8 -c "from collections import Counter; from src.collectors.news_collector import collect_theme_news; p = collect_theme_news('반도체 소재 관련주'); print('검색 건수:', len(p['items'])); print('원문 상태:', dict(Counter(i.get('original_article', {}).get('status') for i in p['items']))); print('원문 확보 기사:', [i['title'] for i in p['items'] if i.get('original_article', {}).get('status') == 'success'])"
 
 # ParsedQuestion 조회, 검색된 후보 목록 조회
 .\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; from src.services.stock_discovery_service import discover_stocks; parsed = parse_stock_question('반도체 소재 관련주 3개만 추천해줘'); print(json.dumps(parsed.to_dict(), ensure_ascii=False, indent=2)); candidates = discover_stocks(parsed.discovery) if not parsed.needs_clarification and parsed.discovery is not None else []; print(json.dumps([c.to_dict() for c in candidates], ensure_ascii=False, indent=2))"
+
+# workflow 연결하여 테스트
+.\.venv\Scripts\python.exe -X utf8 -c "from src.app.stock_advice_workflow import run_stock_advice_workflow; print(run_stock_advice_workflow('반도체 소재 관련주 3개만 추천해줘'))"
 ```

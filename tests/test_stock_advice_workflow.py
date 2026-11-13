@@ -344,16 +344,17 @@ def test_news_search_period_rejects_insufficient_data(days, completed, end):
         workflow._get_news_search_period("005930", days, completed, end)
 
 
-# 파서만 확장된 단계에서는 빈 종목을 기존 비교·Agent 흐름으로 넘기지 않음
-def test_discovery_stops_before_unimplemented_execution(monkeypatch, saved_daily_prices_and_news):
+# 발굴 전 Agent가 종료를 선택하면 종목별 조회·빈 비교 응답을 생성하지 않음
+def test_discovery_stop_before_execution(monkeypatch, saved_daily_prices_and_news):
     parsed = ParsedQuestion("반도체 소재 관련주 3개 추천", (), "stock_discovery",
                             discovery=StockDiscoveryCriteria("반도체 소재", 3))
     monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
-    collector, agent = Mock(), Mock()
+    collector, agent = Mock(), Mock(return_value=AgentDecision("stop", "검증 가능한 뉴스 근거 없음"))
     monkeypatch.setattr(workflow, "collect_stock_price", collector)
     monkeypatch.setattr(workflow, "decide_next_action", agent)
     answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
-    assert "후보 검색·추천 기능은 아직 연결되지" in answer
+    assert "검증된 분석 후보를 확보하지 못했습니다" in answer
+    assert "검증 가능한 뉴스 근거 없음" in answer
     collector.assert_not_called()
     saved_daily_prices_and_news.assert_not_called()
-    agent.assert_not_called()
+    agent.assert_called_once()

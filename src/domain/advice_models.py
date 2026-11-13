@@ -69,6 +69,18 @@ class ParsedQuestion:
     clarification_question: str | None = None
     openai_call_attempts: int = 0
     discovery: StockDiscoveryCriteria | None = None
+    discovered_candidates: tuple[StockDiscoveryCandidate, ...] = ()
+
+    # 질문에 명시된 종목과 발굴 후보를 구분한 채 실제 분석 대상을 반환
+    @property
+    def analysis_stocks(self) -> tuple[ParsedStock, ...]:
+        if self.intent != "stock_discovery":
+            return self.stocks
+        return tuple(
+            ParsedStock(candidate.stock_name, candidate.stock_name, candidate.stock_code, "discovered")
+            for candidate in self.discovered_candidates
+            if candidate.business_verified and candidate.stock_code
+        )
 
     # 기존 단일 종목 호출부에서 첫 종목명 참조 지원
     @property
@@ -102,9 +114,9 @@ class AgentDecision:
     # 응답 생성 / 주가 보충 / 뉴스 수집·인덱싱·재검색 / 기존 인덱스 재검색 / 종료
     action: Literal["respond", "collect_stock", "collect_news", "search_news", "discover_stocks", "stop"]
     reason: str
-    stock: ParsedStock | None = None  # 종목별 작업의 대상 (전체 응답·종료이면 생략 가능)
+    stock: ParsedStock | None = None  # 종목별 작업의 대상 (발굴·전체 응답·종료이면 생략)
     search_query: str | None = None  # 검색 표현을 바꾸는 경우 사용할 질문
-    news_start: Literal[1, 31] | None = None  # 뉴스 수집 시 첫 페이지 또는 추가 페이지
+    news_start: Literal[1, 31] | None = None  # 첫 페이지 또는 추가 페이지
 
     # 중첩된 대상 종목을 포함하여 실행 계획을 딕셔너리로 변환
     def to_dict(self) -> dict[str, Any]:
@@ -121,6 +133,7 @@ class AgentExecutionRecord:
     search_query: str | None = None
     news_start: int | None = None
     new_articles: int = 0
+    next_start: int | None = None  # 다음 페이지 시작 위치
 
     # LLM에 전달할 실행 이력을 직렬화
     def to_dict(self) -> dict[str, Any]:

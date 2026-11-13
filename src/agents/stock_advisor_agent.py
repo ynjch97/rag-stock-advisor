@@ -1,4 +1,5 @@
 import atexit
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 import json
@@ -14,7 +15,7 @@ from src.services.execution_budget import remaining_timeout
 
 class _DecisionOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    action: Literal["respond", "collect_stock", "collect_news", "search_news", "stop"]
+    action: Literal["respond", "collect_stock", "collect_news", "search_news", "discover_stocks", "stop"]
     reason: str = Field(min_length=1, max_length=1000)
     stock_code: str | None
     search_query: str | None = Field(max_length=500)
@@ -34,6 +35,12 @@ AGENT_INSTRUCTIONS = """국내 주식 조사 Controller로서 다음 작업 하�
 투자 답변은 생성하지 않는다. 검증된 stock_code만 쓰고 기간·종목을 임의로 확장하지 않는다.
 respond=근거 충분, collect_stock=주가·추세 보충, collect_news=뉴스 수집·인덱싱·재검색,
 search_news=질문을 재작성하여 기존 인덱스 재검색, stop=한계·실패·근거 부족을 명시하고 종료이다.
+discover_stocks=질문의 discovery 조건으로 관련 기업을 발굴하고 코드·원문 근거를 검증한다.
+종목 발굴 질문에서 검증된 후보가 아직 없으면 허용된 discover_stocks를 우선 검토한다.
+발굴 후보가 요청 수보다 부족하고 discover_stocks의 news_start=31이 허용되면 추가 페이지를 검토한다.
+이는 같은 테마 발굴의 이어보기이며 새 발굴이 아니다. 페이지별 조회도 Agent 결정 횟수에 포함된다.
+analysis_stocks의 role=discovered는 검증된 발굴 후보이며 question.stocks와 구분한다.
+contexts의 discovery_candidate는 발굴 이유·출처·인용 근거이다. 최종 추천·순위 결정은 하지 않는다.
 기사 수는 URL 단위로 세며 청크 수나 상대 hybrid_score만으로 충분하다고 판단하지 않는다.
 최신성은 기사 발행일과 news_collections의 collected_at을 함께 보며 과거 질문에 오늘 기사를 요구하지 않는다.
 뉴스 0건·수집 시각 불명·질문에 필요한 실적이나 원인 후보가 없으면 허용된 보충 작업을 검토한다.
@@ -41,7 +48,8 @@ search_news=질문을 재작성하여 기존 인덱스 재검색, stop=한계·�
 이는 기사 자체가 0건인 상황과 다르며 날짜 조건을 임의로 넓히지 않는다.
 같은 질문 재검색·같은 페이지 재수집을 반복하지 않는다. important O는 우선도이지 사실성 보장이 아니다.
 allowed_actions에 있는 조합만 선택한다. respond/stop의 stock_code·news_start·search_query는 null이다.
-collect_news는 news_start를, search_news는 search_query를 지정한다.
+discover_stocks는 stock_code·search_query가 null이며 news_start를 지정한다.
+collect_news도 news_start를, search_news는 search_query를 지정한다.
 비교 질문은 양쪽 종목의 근거와 동일 기준일·기간을 확인한다.
 인증 실패·손상 데이터는 반복 요청하지 않고 근거가 부족하면 구체적인 이유와 함께 stop한다."""
 
@@ -60,7 +68,12 @@ def decide_next_action(
     )
     evidence = []
     for context in contexts:
-        evidence.append({**context, "news_collections": context.get("news_collections", [])[-10:], "news": [
+        evidence.append({**context, "discovery_candidate": {
+            **context["discovery_candidate"], "evidence": [
+                {key: value for key, value in item.items() if key != "content"}
+                for item in context["discovery_candidate"]["evidence"]
+            ]} if context.get("discovery_candidate") else None,
+            "news_collections": context.get("news_collections", [])[-10:], "news": [
             {**item, "content": item.get("content", "")[:1500]} for item in context["news"][:5]
         ]})
     options = {}
@@ -70,7 +83,10 @@ def decide_next_action(
     try:
         response = connection.responses.create(
             model=app_settings.openai_model, instructions=AGENT_INSTRUCTIONS,
-            input=json.dumps({"question": parsed_question.to_dict(), "contexts": evidence,
+            input=json.dumps({"question": {key: value for key, value in parsed_question.to_dict().items()
+                                          if key != "discovered_candidates"},
+                              "analysis_stocks": [asdict(stock) for stock in parsed_question.analysis_stocks],
+                              "contexts": evidence,
                               "history": [record.to_dict() for record in history],
                               "allowed_actions": allowed_actions,
                               "checked_at": datetime.now(timezone(timedelta(hours=9))).isoformat()}, ensure_ascii=False),
@@ -88,10 +104,14 @@ def decide_next_action(
         output = _DecisionOutput.model_validate_json(calls[0].arguments)
     except ValidationError:
         raise ValueError("OpenAI Agent decision does not match the required schema.") from None
-    stock = next((stock for stock in parsed_question.stocks if stock.stock_code == output.stock_code), None)
+    stock = next((stock for stock in parsed_question.analysis_stocks if stock.stock_code == output.stock_code), None)
     if output.action in ("respond", "stop"):
         if output.stock_code is not None or output.search_query is not None or output.news_start is not None:
-            raise ValueError("Terminal Agent decisions must not include tool arguments.")
+            raise ValueError("Untargeted Agent decisions must not include tool arguments.")
+    elif output.action == "discover_stocks":
+        if (output.stock_code is not None or output.search_query is not None or output.news_start is None
+                or parsed_question.intent != "stock_discovery" or parsed_question.discovery is None):
+            raise ValueError("Discovery requires criteria and a page, without stock or query arguments.")
     elif stock is None:
         raise ValueError("Agent selected an unverified stock.")
     if ((output.action == "collect_stock" and (output.search_query is not None or output.news_start is not None))
@@ -99,7 +119,7 @@ def decide_next_action(
             or (output.action == "search_news" and output.news_start is not None)):
         raise ValueError("Agent returned arguments for a different tool.")
     if not any(item["action"] == output.action and item.get("stock_code") == output.stock_code
-               and (output.action != "collect_news" or item.get("news_start") == output.news_start)
+               and (output.action not in ("collect_news", "discover_stocks") or item.get("news_start") == output.news_start)
                for item in allowed_actions):
         raise ValueError("Agent selected an action outside the allowed budget.")
     if output.action == "search_news" and (not output.search_query or not output.search_query.strip()

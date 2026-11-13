@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -22,6 +22,7 @@ from src.search.hybrid_search import search_news_hybrid
 from src.services.stock_advice_service import generate_stock_advice, generate_stock_comparison_advice
 from src.services.stock_context_service import StockContext, attach_agent_results, build_stock_context
 from src.services.execution_budget import deadline_http_client, remaining_timeout
+from src.services.stock_discovery_service import discover_stocks
 
 
 TOOL_ERRORS = (ValueError, OSError, TimeoutError, httpx.HTTPError)
@@ -48,29 +49,44 @@ def run_stock_advice_workflow(question: str, app_settings: Settings = settings) 
             f"질문의 기간은 {parsed_question.period.start_date}부터 {parsed_question.period.end_date}까지입니다. "
             "현재 조회는 거래일 수 기준입니다. 최근 몇 거래일을 분석할지 알려주세요."
         )
+    if parsed_question.intent == "stock_discovery" and provider == "sample":
+        return "종목 발굴 연결은 STOCK_API_PROVIDER=toss에서 지원합니다. 샘플 종목을 후보로 대체하지 않습니다."
     deadline = time.monotonic() + app_settings.agent_timeout_seconds
-    contexts = []
-    for stock in parsed_question.stocks:
-        if provider == "sample":
-            contexts.append(_build_analysis_context(parsed_question, stock, app_settings))
-            continue
-        try:
-            remaining_timeout(deadline)
-            contexts.append(_build_analysis_context(parsed_question, stock, app_settings, deadline=deadline))
-        except TOOL_ERRORS as error:
-            context = build_stock_context(parsed_question, {
-                "stock_name": stock.stock_name, "stock_code": stock.stock_code, "current_price": None,
-                "base_date": None, "trend": "확인 불가", "change_rate": None, "source": "toss",
-            }, [], news_source="hybrid_search", issues=[_tool_error("주가 조회", error)])
-            context.update(news_period=None, news_collections=[], availability={
-                "stock": False, "stock_retryable": _retryable(error), "news_retryable": True,
-            })
-            contexts.append(context)
+    contexts = [_build_context_or_error(parsed_question, stock, app_settings, deadline)
+                for stock in parsed_question.analysis_stocks]
+    notes = []
     if provider == "toss":
-        _run_agent_loop(parsed_question, contexts, app_settings, deadline)
+        parsed_question, notes = _run_agent_loop(parsed_question, contexts, app_settings, deadline)
+    if not contexts:
+        return "\n".join(["검증된 분석 후보를 확보하지 못했습니다.", *notes])
     if len(contexts) == 1:
-        return generate_stock_advice(contexts[0])
-    return generate_stock_comparison_advice(contexts)
+        answer = generate_stock_advice(contexts[0])
+    else:
+        answer = generate_stock_comparison_advice(contexts)
+    if parsed_question.intent == "stock_discovery":
+        return (f"종목 발굴 검토 결과: {len(contexts)}개 후보입니다. "
+                f"요청한 {parsed_question.discovery.requested_count}개의 최종 추천 선정 전 단계입니다.\n\n" + answer)
+    return answer
+
+
+# 종목별 조회 실패도 컨텍스트로 보존하여 다른 검증 후보의 분석을 계속 진행
+def _build_context_or_error(
+    parsed: ParsedQuestion, stock: ParsedStock, app_settings: Settings, deadline: float,
+) -> StockContext:
+    if (app_settings.stock_api_provider or "").lower() == "sample":
+        return _build_analysis_context(parsed, stock, app_settings)
+    try:
+        remaining_timeout(deadline)
+        return _build_analysis_context(parsed, stock, app_settings, deadline=deadline)
+    except TOOL_ERRORS as error:
+        context = build_stock_context(parsed, {
+            "stock_name": stock.stock_name, "stock_code": stock.stock_code, "current_price": None,
+            "base_date": None, "trend": "확인 불가", "change_rate": None, "source": "toss",
+        }, [], news_source="hybrid_search", issues=[_tool_error("주가 조회", error)])
+        context.update(news_period=None, news_collections=[], availability={
+            "stock": False, "stock_retryable": _retryable(error), "news_retryable": True,
+        })
+        return context
 
 
 # 검증된 종목 하나의 가격·추세·뉴스를 기존 컨텍스트 구조로 구성
@@ -209,11 +225,22 @@ def _read_news_collections(stock_code: str, app_settings: Settings) -> list[dict
 def _allowed_agent_actions(parsed: ParsedQuestion, contexts: list[StockContext], history: list[AgentExecutionRecord],
                            indexing_calls: int, app_settings: Settings) -> list[dict]:
     allowed = [{"action": "stop"}]
+    if parsed.intent == "stock_discovery" and parsed.discovery is not None:
+        records = [record for record in history if record.action == "discover_stocks"]
+        pages = {record.news_start for record in records}
+        target_count = min(parsed.discovery.requested_count, app_settings.agent_max_discovery_candidates)
+        if not records and app_settings.agent_max_discoveries >= 1 and app_settings.agent_max_news_pages >= 1:
+            allowed.insert(0, {"action": "discover_stocks", "news_start": 1})
+        elif (len(parsed.discovered_candidates) < target_count and len(pages) < min(2, app_settings.agent_max_news_pages)
+              and pages == {1} and records[-1].success and records[-1].next_start == 31):
+            allowed.insert(0, {"action": "discover_stocks", "news_start": 31})
+        if not contexts:
+            return allowed
     # 최소 근거조차 없으면 LLM이 충분하다고 선언하지 못하도록 하며 부분 응답은 stop으로 처리
-    if all(context["availability"]["stock"] and context["news"] for context in contexts):
+    if contexts and all(context["availability"]["stock"] and context["news"] for context in contexts):
         allowed.insert(0, {"action": "respond"})
     now = datetime.now(KST)
-    for stock, context in zip(parsed.stocks, contexts):
+    for stock, context in zip(parsed.analysis_stocks, contexts):
         code, availability = stock.stock_code, context["availability"]
         records = [record for record in history if record.stock_code == code]
         stale_price = context["stock"].get("price_type") == "realtime" and (
@@ -240,7 +267,7 @@ def _allowed_agent_actions(parsed: ParsedQuestion, contexts: list[StockContext],
         elif 31 not in pages and (any(item.get("next_start") == 31 for item in recent)
                                  or (not any("next_start" in item for item in recent)
                                      and not any(item.get("article_count") == 0 for item in recent))):
-            allowed.append({"action": "collect_news", "stock_code": code, "news_start": 31})
+            allowed.append({"action": "collect_news", "stock_code": code, "news_start": 31}) # 종목별 뉴스의 추가 페이지 조회
     return allowed
 
 
@@ -253,7 +280,9 @@ def _evidence_signature(context: StockContext) -> tuple:
 
 # LLM 판단 -> 허용 작업만 실행 -> 결과 재평가
 # 결정, 페이지·인덱싱, 시간 제한을 코드로 강제
-def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_settings: Settings, deadline: float) -> None:
+def _run_agent_loop(
+    parsed: ParsedQuestion, contexts: list[StockContext], app_settings: Settings, deadline: float,
+) -> tuple[ParsedQuestion, list[str]]:
     history, notes, indexing_calls = [], [], 0
     for _ in range(app_settings.agent_max_decisions):
         try:
@@ -262,7 +291,8 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
             decision = decide_next_action(parsed, contexts, history, allowed, app_settings=app_settings, deadline=deadline)
             code = decision.stock.stock_code if decision.stock is not None else None
             if not any(item["action"] == decision.action and item.get("stock_code") == code
-                       and (decision.action != "collect_news" or item["news_start"] == decision.news_start)
+                       and (decision.action not in ("collect_news", "discover_stocks")
+                            or item["news_start"] == decision.news_start)
                        for item in allowed):
                 raise ValueError("Agent action exceeds the allowed budget.")
             if decision.action in ("respond", "stop"):
@@ -271,8 +301,47 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
                     notes.append(f"추가 조사 중단: {decision.reason}")
                 break
             remaining_timeout(deadline)
-            position = next(i for i, stock in enumerate(parsed.stocks) if stock.stock_code == code)
-            context, stock = contexts[position], parsed.stocks[position]
+            if decision.action == "discover_stocks":
+                # 종목 뉴스 보충과 동일하게 이번 결정에서 선택한 한 페이지만 실행
+                try:
+                    result = discover_stocks(parsed.discovery, start=decision.news_start,
+                                             app_settings=app_settings, deadline=deadline)
+                    remaining_timeout(deadline)
+                    candidates = {item.stock_code: item for item in parsed.discovered_candidates}
+                    limit = min(10, app_settings.agent_max_discovery_candidates)
+                    if len(result["candidates"]) > limit or any(
+                        not item.business_verified or not item.stock_code or not item.evidence for item in result["candidates"]
+                    ):
+                        raise ValueError("Discovery returned unverified or excessive candidates.")
+                    for item in result["candidates"]:
+                        if item.stock_code in candidates:
+                            previous = candidates[item.stock_code]
+                            urls = {source.url for source in previous.evidence}
+                            evidence = previous.evidence + tuple(source for source in item.evidence if source.url not in urls)
+                            candidates[item.stock_code] = replace(previous, evidence=evidence[:3])
+                        elif len(candidates) < limit:
+                            candidates[item.stock_code] = item
+                    parsed = replace(parsed, discovered_candidates=tuple(candidates.values()))
+                    history.append(AgentExecutionRecord("discover_stocks", None, True, decision.reason,
+                        result["collection"].get("query"), decision.news_start,
+                        next_start=result["collection"].get("next_start")))
+                except TOOL_ERRORS as error:
+                    reason = _tool_error("종목 발굴", error)
+                    history.append(AgentExecutionRecord("discover_stocks", None, False, reason,
+                                                        news_start=decision.news_start))
+                    notes.append(reason)
+                    break
+                if any(item["action"] == "discover_stocks" for item in
+                       _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings)):
+                    continue
+                if not parsed.discovered_candidates:
+                    notes.append("테마 뉴스에서 종목코드·사업 연관 근거가 확인된 후보가 없습니다. 발굴 재시도는 하지 않습니다.")
+                    break
+                contexts.extend(_build_context_or_error(parsed, stock, app_settings, deadline)
+                                for stock in parsed.analysis_stocks)
+                continue
+            position = next(i for i, stock in enumerate(parsed.analysis_stocks) if stock.stock_code == code)
+            context, stock = contexts[position], parsed.analysis_stocks[position]
             query = (decision.search_query or parsed.original_question).strip()
             if decision.action == "search_news" and (query.casefold() == parsed.original_question.strip().casefold()
                 or any(record.stock_code == code and record.search_query and record.search_query.casefold() == query.casefold()
@@ -323,7 +392,11 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
             break
     else:
         notes.append(f"Agent 결정 횟수 상한({app_settings.agent_max_decisions}회)에 도달했습니다.")
+    # 추가 페이지를 중단하거나 예산이 소진되어도 이전 페이지의 검증 후보는 유지
+    if parsed.discovered_candidates and not contexts:
+        contexts.extend(_build_context_or_error(parsed, stock, app_settings, deadline) for stock in parsed.analysis_stocks)
     attach_agent_results(contexts, history, notes)
+    return parsed, notes
 
 
 # 수집된 완료 일봉으로 최근 n거래일의 시작일 결정 (장중 뉴스는 당일까지 포함)
