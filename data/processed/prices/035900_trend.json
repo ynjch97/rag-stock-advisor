@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "JYP Ent.",
+    "stock_code": "035900",
+    "base_date": "2026-10-23",
+    "recent_days": 5,
+    "recent_change_rate": -8.33,
+    "up_days": 2,
+    "down_days": 3,
+    "trend": "최근 5거래일 하락"
+  }
+]
