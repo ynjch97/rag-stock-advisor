@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-17",
+    "recent_days": 5,
+    "recent_change_rate": -17.42,
+    "up_days": 1,
+    "down_days": 4,
+    "trend": "최근 5거래일 하락"
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-18",
+    "recent_days": 5,
+    "recent_change_rate": -10.9,
+    "up_days": 1,
+    "down_days": 4,
+    "trend": "최근 5거래일 하락"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-11",
+    "open": 338000,
+    "high": 376500,
+    "low": 336000,
+    "close": 376000,
+    "volume": 158428,
+    "change_rate": 11.41,
+    "change_price": 38500
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-12",
+    "open": 380000,
+    "high": 389000,
+    "low": 360000,
+    "close": 362500,
+    "volume": 137827,
+    "change_rate": -3.59,
+    "change_price": -13500
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-13",
+    "open": 367500,
+    "high": 392500,
+    "low": 353500,
+    "close": 358000,
+    "volume": 197623,
+    "change_rate": -1.24,
+    "change_price": -4500
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-16",
+    "open": 364500,
+    "high": 386500,
+    "low": 315500,
+    "close": 325000,
+    "volume": 168843,
+    "change_rate": -9.22,
+    "change_price": -33000
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-17",
+    "open": 322000,
+    "high": 331500,
+    "low": 309000,
+    "close": 310500,
+    "volume": 103644,
+    "change_rate": -4.46,
+    "change_price": -14500
+  },
+  {
+    "stock_name": "이오테크닉스",
+    "stock_code": "039030",
+    "base_date": "2026-11-18",
+    "open": 330000,
+    "high": 332000,
+    "low": 302000,
+    "close": 323000,
+    "volume": 155530,
+    "change_rate": 4.03,
+    "change_price": 12500
+  }
+]

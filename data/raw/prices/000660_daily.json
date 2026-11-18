@@ -2,42 +2,6 @@
   {
     "stock_name": "SK하이닉스",
     "stock_code": "000660",
-    "base_date": "2026-11-06",
-    "open": 1172000,
-    "high": 1217000,
-    "low": 1070000,
-    "close": 1176000,
-    "volume": 11977741,
-    "change_rate": -6.81,
-    "change_price": -86000
-  },
-  {
-    "stock_name": "SK하이닉스",
-    "stock_code": "000660",
-    "base_date": "2026-11-09",
-    "open": 1165000,
-    "high": 1193000,
-    "low": 1105000,
-    "close": 1114000,
-    "volume": 6604939,
-    "change_rate": -5.27,
-    "change_price": -62000
-  },
-  {
-    "stock_name": "SK하이닉스",
-    "stock_code": "000660",
-    "base_date": "2026-11-10",
-    "open": 1210000,
-    "high": 1242000,
-    "low": 1190000,
-    "close": 1198000,
-    "volume": 5147946,
-    "change_rate": 7.54,
-    "change_price": 84000
-  },
-  {
-    "stock_name": "SK하이닉스",
-    "stock_code": "000660",
     "base_date": "2026-11-11",
     "open": 1188000,
     "high": 1294000,
@@ -58,5 +22,53 @@
     "volume": 6384041,
     "change_rate": -3.8,
     "change_price": -49000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-13",
+    "open": 1249000,
+    "high": 1317000,
+    "low": 1201000,
+    "close": 1233000,
+    "volume": 4909256,
+    "change_rate": -0.64,
+    "change_price": -8000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-16",
+    "open": 1194000,
+    "high": 1228000,
+    "low": 1113000,
+    "close": 1118000,
+    "volume": 5874032,
+    "change_rate": -9.33,
+    "change_price": -115000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-17",
+    "open": 1086000,
+    "high": 1150000,
+    "low": 1071000,
+    "close": 1100000,
+    "volume": 5346310,
+    "change_rate": -1.61,
+    "change_price": -18000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-18",
+    "open": 1197000,
+    "high": 1197000,
+    "low": 1108000,
+    "close": 1164000,
+    "volume": 5303969,
+    "change_rate": 5.82,
+    "change_price": 64000
   }
 ]

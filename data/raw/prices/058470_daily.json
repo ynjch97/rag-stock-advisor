@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "리노공업",
+    "stock_code": "058470",
+    "base_date": "2026-11-11",
+    "open": 46850,
+    "high": 53100,
+    "low": 46800,
+    "close": 53000,
+    "volume": 881341,
+    "change_rate": 9.84,
+    "change_price": 4750
+  },
+  {
+    "stock_name": "리노공업",
+    "stock_code": "058470",
+    "base_date": "2026-11-12",
+    "open": 52600,
+    "high": 54900,
+    "low": 51300,
+    "close": 51700,
+    "volume": 987640,
+    "change_rate": -2.45,
+    "change_price": -1300
+  },
+  {
+    "stock_name": "리노공업",
+    "stock_code": "058470",
+    "base_date": "2026-11-13",
+    "open": 53600,
+    "high": 54700,
+    "low": 50000,
+    "close": 52500,
+    "volume": 1027772,
+    "change_rate": 1.55,
+    "change_price": 800
+  },
+  {
+    "stock_name": "리노공업",
+    "stock_code": "058470",
+    "base_date": "2026-11-16",
+    "open": 52600,
+    "high": 52700,
+    "low": 48300,
+    "close": 48650,
+    "volume": 835847,
+    "change_rate": -7.33,
+    "change_price": -3850
+  },
+  {
+    "stock_name": "리노공업",
+    "stock_code": "058470",
+    "base_date": "2026-11-17",
+    "open": 48200,
+    "high": 49100,
+    "low": 47000,
+    "close": 47100,
+    "volume": 605208,
+    "change_rate": -3.19,
+    "change_price": -1550
+  }
+]
