@@ -271,7 +271,8 @@ BM25 score 3.669292259886812
 - `advice_models.py`
   - `AgentDecision` 추가 : 대상 종목, 실행할 작업, 판단 이유
 - `news_collector.py`
-  - `start=1`, `start=31` 로 추가 수집 지원
+  - `_run_agent_loop()` > `collect_and_index_news()` 수집 수행
+    - `start=1`, `start=31` 값으로 추가 수집 지원
   - `stock_advisor_metadata.json` > `collections` 에 수집 이력 저장
 - `news_indexer.py`
   - 최신성 판단용 이력(`수집 시각`)을 메타데이터에 보존하는 부분
@@ -297,10 +298,10 @@ BM25 score 3.669292259886812
 
 #### 종목 추천
 - `settings.py`
-  - 질문당 발굴 1회, 검토 후보 최대 10개
+  - 질문당 검토 후보 최대 10개
 - `advice_models.py`
+  - 최종 반환 후보 수 : 사용자 요청에 따름 (기본값 3개, 최대 10개)
   - 종목 발굴 조건, 후보, 근거 구조와 작업 의도(`discover_stocks`) 추가
-  - 최종 반환 후보 수 : 사용자 요청에 따름 (초기 설정 3개, 최대 10개)
 - `llm_question_analyzer.py`
   - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
 - `llm_stock_discovery_analyzer.py`
@@ -314,16 +315,43 @@ BM25 score 3.669292259886812
 - `news_collector.py`
   - 종목코드 없이 테마로 검색하는 `collect_theme_news()` 추가
 - `stock_advisor_agent.py`
-  - 발굴 필요성 판단과 `discover_stocks` 선택 추가
+  - 발굴 필요성 판단 + 선택 가능한 작업에 `discover_stocks` 추가
 - `stock_advice_workflow.py`
-  - 종목 확정 전 발굴 -> 검증된 후보의 기존 분석 흐름 연결
+  - 종목 발굴 -> `discover_theme_stocks(parsed.discovery)` -> 검증된 후보와 실행 이력을 보존 -> 기존 분석 흐름에 연결
+    - [테마 키워드 + *관련주*] 로 검색 수행 (이미 포함되어 있으면 추가하지 않음)
+    - Agent 결정 최대 횟수는 `settings.py` -> `agent_max_decisions`
+  - `collect_theme_news()` 성공 시, `collect_and_index_news` -> `collect_and_save_news()` 가 수행되도록 함
+    - 각 후보 별로 순회하며 기존 종목 분석과 동일한 방법으로 뉴스 수집 및 저장 (`agent_max_decisions` 는 각각 적용됨)
+    - `종목명`으로 검색 + 추가 수집 지원 + `collections` 에 수집 이력 저장 (구조는 통일)
 - 컨텍스트·응답 서비스 : 후보별 선정 근거·출처·위험 요인을 전달하고 표시
+
+#### 종목 분석 & 종목 추천 흐름
+- `stock_advice_workflow.py` -> `_run_agent_loop()` 공통
+  - `_allowed_agent_actions()`  : 지금 실행 가능한 작업, 페이지 계산
+  - `decide_next_action()` : Agent 가 작업 하나 선택 -> 실행
+  - 추가 페이지가 허용되면 다음 반복에서 Agent 가 다시 선택
+``` bash
+[기존 종목 분석 흐름 : collect_news]
+src\app\stock_advice_workflow.py > _run_agent_loop()
+src\app\rag_indexing_workflow.py > collect_and_index_news() # 분석할 종목의 뉴스 검색
+src\collectors\news_collector.py > collect_and_save_news()  # 분석할 종목의 뉴스 검색 결과 저장
+
+[추가된 종목 추천 흐름 : discover_stocks]
+src\app\stock_advice_workflow.py > _run_agent_loop()
+src\services\stock_discovery_service.py > discover_theme_stocks()
+src\collectors\news_collector.py > collect_theme_news()     # 추천 종목 추출
+src\app\rag_indexing_workflow.py > collect_and_index_news() # 추출된 종목의 뉴스 검색
+src\collectors\news_collector.py > collect_and_save_news()  # 추출된 종목의 뉴스 검색 결과 저장
+```
 
 #### 테스트
 ``` bash
-# 키워드로 검색된 기사 조회
-.\.venv\Scripts\python.exe -X utf8 -c "from collections import Counter; from src.collectors.news_collector import collect_theme_news; p = collect_theme_news('반도체 소재'); print('검색 건수:', len(p['items'])); print('원문 상태:', dict(Counter(i.get('original_article', {}).get('status') for i in p['items']))); print('원문 확보 기사:', [i['title'] for i in p['items'] if i.get('original_article', {}).get('status') == 'success'])"
+# 각 기능 마다 명시된 함수만을 주석 해제 후 아래 파일을 실행시킴
+.\.venv\Scripts\python.exe -X utf8 .\test.py
 
-# ParsedQuestion 조회, 검색된 후보 목록 조회
-.\.venv\Scripts\python.exe -X utf8 -c "import json; from src.parsers.stock_question_parser import parse_stock_question; from src.services.stock_discovery_service import discover_stocks; parsed = parse_stock_question('반도체 소재 관련주 3개만 추천해줘'); print(json.dumps(parsed.to_dict(), ensure_ascii=False, indent=2)); candidates = discover_stocks(parsed.discovery) if not parsed.needs_clarification and parsed.discovery is not None else []; print(json.dumps([c.to_dict() for c in candidates], ensure_ascii=False, indent=2))"
+# 키워드로 검색된 뉴스 조회
+inspect_discovery_stages()
+
+# 질문 분석 결과인 ParsedQuestion 조회, 검색된 후보 목록 조회
+inspect_discovery_candidates()
 ```
