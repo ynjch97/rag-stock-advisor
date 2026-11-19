@@ -23,6 +23,7 @@ KST = timezone(timedelta(hours=9))
 NEWS_PUBLISHERS = {
     "hankyung.com": "한국경제", "mk.co.kr": "매일경제", "sedaily.com": "서울경제", "biz.heraldcorp.com": "헤럴드경제", "economist.co.kr": "이코노미스트",
     "edaily.co.kr": "이데일리", "yna.co.kr": "연합뉴스", "mt.co.kr": "머니투데이", "biz.chosun.com": "조선비즈", "asiae.co.kr": "아시아경제",
+    "pinpointnews.co.kr": "핀포인트뉴스", "newsis.com": "뉴시스", "fnnews.com": "파이낸셜뉴스", "biz.newdaily.co.kr": "뉴데일리",
 }
 
 

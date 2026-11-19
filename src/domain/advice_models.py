@@ -4,8 +4,8 @@ from typing import Any, Literal
 from src.domain.stock_models import DEFAULT_RECENT_DAYS
 
 
-DEFAULT_DISCOVERY_RESULTS = 3
-MAX_DISCOVERY_RESULTS = 10
+DEFAULT_DISCOVERY_RESULTS = 3 # 사용자 요청 종목 추천 개수 (기본값)
+MAX_DISCOVERY_RESULTS = 10    # 사용자 요청 종목 추천 개수 (상한값)
 
 
 # 대상 종목 정보

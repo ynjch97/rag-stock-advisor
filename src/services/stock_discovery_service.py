@@ -53,7 +53,7 @@ def _prepare_discovery_articles(payload: dict, deadline: float) -> list[StockDis
 
 
 # 테마 뉴스에서 검토 후보를 찾고 상장 종목·원문 인용·직접 사업 연관성을 확인한 결과만 반환
-def discover_stocks(
+def discover_theme_stocks(
     criteria: StockDiscoveryCriteria, *, start_date: str | None = None, end_date: str | None = None,
     app_settings: Settings = settings, stock_infos: list[dict[str, str]] | None = None,
     client: OpenAI | None = None, http_client: httpx.Client | None = None, deadline: float | None = None,

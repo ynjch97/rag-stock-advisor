@@ -258,8 +258,8 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
     for _ in range(app_settings.agent_max_decisions):
         try:
             remaining_timeout(deadline)
-            allowed = _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings)
-            decision = decide_next_action(parsed, contexts, history, allowed, app_settings=app_settings, deadline=deadline)
+            allowed = _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings) # 지금 실행해도 되는 작업 목록
+            decision = decide_next_action(parsed, contexts, history, allowed, app_settings=app_settings, deadline=deadline) # 다음 작업 대상
             code = decision.stock.stock_code if decision.stock is not None else None
             if not any(item["action"] == decision.action and item.get("stock_code") == code
                        and (decision.action != "collect_news" or item["news_start"] == decision.news_start)

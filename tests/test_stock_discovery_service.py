@@ -48,7 +48,7 @@ def dependencies(monkeypatch, payload):
 def _discover(**kwargs):
     options = {"stock_infos": REFERENCES, "client": Mock()}
     options.update(kwargs)
-    return service.discover_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)
+    return service.discover_theme_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)
 
 
 # 기준정보 코드와 원문 전체·인용·출처를 보존하며 최종 개수와 검토 상한을 분리
@@ -156,7 +156,7 @@ def test_preflight_validation(dependencies):
                                                ("소재", True, 10), ("소재", 3, 11)])
 def test_invalid_criteria(dependencies, theme, count, limit):
     with pytest.raises(ValueError):
-        service.discover_stocks(StockDiscoveryCriteria(theme, count), stock_infos=REFERENCES, client=Mock(),
+        service.discover_theme_stocks(StockDiscoveryCriteria(theme, count), stock_infos=REFERENCES, client=Mock(),
                                app_settings=replace(settings, agent_max_discovery_candidates=limit))
     dependencies[0].assert_not_called()
 
