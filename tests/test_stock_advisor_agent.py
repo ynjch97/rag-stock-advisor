@@ -9,7 +9,8 @@ import pytest
 
 from src.agents.stock_advisor_agent import decide_next_action
 from src.config.settings import settings
-from src.domain.advice_models import ParsedQuestion, ParsedStock
+from src.domain.advice_models import (ParsedQuestion, ParsedStock, StockDiscoveryCriteria,
+                                      StockDiscoveryCandidate, StockDiscoveryEvidence)
 
 
 # 실제 API 키·통신 없이 strict Tool Calling 응답을 구성
@@ -86,3 +87,47 @@ def test_invalid_tool_response(environment, status, name, count):
     )] * count)
     with pytest.raises(ValueError):
         decide_next_action(parsed, [{"news": []}], [], allowed, app_settings=config, client=client)
+
+
+# 발굴 단계에서는 종목코드 없이 허용된 페이지의 작업을 선택
+@pytest.mark.parametrize("page", [1, 31])
+def test_discovery_decision(environment, page):
+    _, client, _, config, _ = environment
+    parsed = ParsedQuestion("반도체 관련주", (), "stock_discovery", discovery=StockDiscoveryCriteria("반도체"))
+    output = {"action": "discover_stocks", "reason": "후보 부족", "stock_code": None,
+              "search_query": None, "news_start": page}
+    client.responses.create.return_value = SimpleNamespace(status="completed", output=[SimpleNamespace(
+        type="function_call", name="submit_agent_decision", arguments=json.dumps(output))])
+    decision = decide_next_action(parsed, [], [], [{"action": "discover_stocks", "news_start": page}],
+                                 app_settings=config, client=client)
+    assert decision.stock is None and decision.news_start == page
+    schema = client.responses.create.call_args.kwargs["tools"][0]["parameters"]
+    assert schema["properties"]["action"]["enum"] == ["discover_stocks"]
+    for arguments in ({"stock_code": "000660"}, {"search_query": "임의 테마"}, {"news_start": None},
+                      {"news_start": 31 if page == 1 else 1}):
+        client.responses.create.return_value.output[0].arguments = json.dumps({**output, **arguments})
+        with pytest.raises(ValueError):
+            decide_next_action(parsed, [], [], [{"action": "discover_stocks", "news_start": page}],
+                               app_settings=config, client=client)
+
+
+# 검증된 후보만 분석 대상으로 전달하며 질문 stocks와 구분하고 원문 전체 재전송 방지
+def test_discovered_candidate_provenance(environment):
+    _, client, _, config, _ = environment
+    candidate = StockDiscoveryCandidate("SK하이닉스", "원문 근거", stock_code="000660", business_verified=True,
+        evidence=(StockDiscoveryEvidence("사업 기사", "https://example.test/1", "보존할 본문", excerpt="사업 인용"),))
+    parsed = ParsedQuestion("관련주 추천", (), "stock_discovery", discovery=StockDiscoveryCriteria("반도체"),
+                            discovered_candidates=(candidate,))
+    output = {"action": "collect_stock", "reason": "주가 부족", "stock_code": "000660",
+              "search_query": None, "news_start": None}
+    client.responses.create.return_value = SimpleNamespace(status="completed", output=[SimpleNamespace(
+        type="function_call", name="submit_agent_decision", arguments=json.dumps(output))])
+    context = {"news": [], "discovery_candidate": candidate.to_dict()}
+    decision = decide_next_action(parsed, [context], [], [{"action": "collect_stock", "stock_code": "000660"}],
+                                 app_settings=config, client=client)
+    assert decision.stock.role == "discovered"
+    data = json.loads(client.responses.create.call_args.kwargs["input"])
+    assert data["question"]["stocks"] == []
+    assert data["analysis_stocks"][0]["stock_code"] == "000660"
+    assert "content" not in data["contexts"][0]["discovery_candidate"]["evidence"][0]
+    assert context["discovery_candidate"]["evidence"][0]["content"] == "보존할 본문"

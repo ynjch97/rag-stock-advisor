@@ -2,6 +2,7 @@ from dataclasses import replace
 from email.utils import parsedate_to_datetime
 import re
 import time
+from typing import Any, Sequence
 
 import httpx
 from openai import OpenAI
@@ -23,7 +24,8 @@ def _normalize_stock_name(value: str) -> str:
     return "".join(value.split()).casefold()
 
 
-# 성공적으로 확보한 원문만 출처 단위로 정리; 요약만 있는 기사를 사업 검증 근거로 확정하지 않음
+# 성공적으로 확보한 원문만 출처 단위로 정리
+# 요약만 있는 기사를 사업 검증 근거로 확정하지 않음
 def _prepare_discovery_articles(payload: dict, deadline: float) -> list[StockDiscoveryEvidence]:
     articles, seen = [], set()
     for item in payload["items"]:
@@ -52,15 +54,38 @@ def _prepare_discovery_articles(payload: dict, deadline: float) -> list[StockDis
     return articles
 
 
-# 테마 뉴스에서 검토 후보를 찾고 상장 종목·원문 인용·직접 사업 연관성을 확인한 결과만 반환
+# 종목 후보를 종목코드·근거 URL 기준으로 병합하고 검토 상한 유지
+def merge_discovery_candidates(
+    existing: Sequence[StockDiscoveryCandidate], incoming: Sequence[StockDiscoveryCandidate], limit: int,
+) -> tuple[StockDiscoveryCandidate, ...]:
+    if len(incoming) > limit or any(
+        not item.business_verified or not item.stock_code or not item.evidence for item in incoming
+    ):
+        raise ValueError("Discovery returned unverified or excessive candidates.")
+    merged = {item.stock_code: item for item in existing}
+    for item in incoming:
+        if item.stock_code in merged:
+            previous = merged[item.stock_code]
+            urls = {source.url for source in previous.evidence}
+            evidence = previous.evidence + tuple(source for source in item.evidence if source.url not in urls)
+            merged[item.stock_code] = replace(previous, evidence=evidence[:3])
+        elif len(merged) < limit:
+            merged[item.stock_code] = item
+    return tuple(merged.values())
+
+
+# 뉴스에서 검증한 후보와 collection 수집 정보를 반환 (저장하지 않음)
 def discover_theme_stocks(
     criteria: StockDiscoveryCriteria, *, start_date: str | None = None, end_date: str | None = None,
     app_settings: Settings = settings, stock_infos: list[dict[str, str]] | None = None,
     client: OpenAI | None = None, http_client: httpx.Client | None = None, deadline: float | None = None,
-) -> list[StockDiscoveryCandidate]:
+    start: int = 1,
+) -> dict[str, Any]:
     if (not isinstance(criteria.theme, str) or not criteria.theme.strip() or len(criteria.theme.strip()) > 500
             or type(criteria.requested_count) is not int or not 1 <= criteria.requested_count <= MAX_DISCOVERY_RESULTS):
         raise ValueError("Discovery requires a theme and requested_count between 1 and 10.")
+    if type(start) is not int or start not in (1, 31):
+        raise ValueError("Discovery start must be 1 or 31.")
     limit = app_settings.agent_max_discovery_candidates
     if type(limit) is not int or not 1 <= limit <= 10:
         raise ValueError("AGENT_MAX_DISCOVERY_CANDIDATES must be between 1 and 10.")
@@ -81,17 +106,20 @@ def discover_theme_stocks(
         if re.fullmatch(r"[A-Za-z0-9]{6}", code):
             by_name.setdefault(_normalize_stock_name(name), {})[code] = record
     if not by_name:
-        return []
-    payload = collect_theme_news(criteria.theme.strip(), start_date, end_date,
-        app_settings=app_settings, http_client=http_client, start=1, deadline=deadline)
+        raise ValueError("Stock references contain no valid stock codes.")
+    query = criteria.theme.strip()
+    if "관련주" not in query:
+        query += " 관련주"
+    payload = collect_theme_news(query, start_date, end_date,
+        app_settings=app_settings, http_client=http_client, start=start, deadline=deadline)
     articles = _prepare_discovery_articles(payload, deadline)
     # 1. 후보 추출에 사용할 기사 부재를 확인 (분석 가능한 원문이 없으면 true, 빈 후보 목록 반환)
     if not articles:
-        return []
+        return {"candidates": [], "collection": payload["collection"]}
     analysis = analyze_discovery_candidates(criteria, articles, limit,
         app_settings=app_settings, client=client, deadline=deadline)
     remaining_timeout(deadline)
-    candidates = {}
+    candidates = ()
     for item in analysis.candidates:
         matches = by_name.get(_normalize_stock_name(item.stock_name), {})
         # 2. 후보의 기준정보 일치·선정 이유를 확인 (일치 코드가 정확히 1개가 아니거나 선정 이유가 없으면 true, 후보 제외)
@@ -125,14 +153,9 @@ def discover_theme_stocks(
         if not evidence:
             continue
         code = record["stock_code"]
-        # 9. 후보 종목 중복을 확인 (동일 종목코드가 이미 있으면 true, 기존 후보에 근거만 병합)
-        if code in candidates:
-            previous = candidates[code]
-            previous_urls = {source.url for source in previous.evidence}
-            merged = previous.evidence + tuple(source for source in evidence if source.url not in previous_urls)
-            candidates[code] = replace(previous, evidence=merged[:3])
-        else:
-            candidates[code] = StockDiscoveryCandidate(stock_name=record["stock_name"], stock_code=code,
-                selection_reason=item.selection_reason.strip(), evidence=tuple(evidence), business_verified=True)
+        # 9. 중복 확인(동일 종목·근거) -> 동일한 병합 규칙 적용
+        candidate = StockDiscoveryCandidate(stock_name=record["stock_name"], stock_code=code,
+            selection_reason=item.selection_reason.strip(), evidence=tuple(evidence), business_verified=True)
+        candidates = merge_discovery_candidates(candidates, (candidate,), limit)
     # 요청 개수는 최종 선택 단계에서 적용; 여기서는 최대 검토 후보 수만 제한
-    return list(candidates.values())[:limit]
+    return {"candidates": list(candidates), "collection": payload["collection"]}

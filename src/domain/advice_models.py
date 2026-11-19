@@ -69,6 +69,17 @@ class ParsedQuestion:
     clarification_question: str | None = None
     openai_call_attempts: int = 0
     discovery: StockDiscoveryCriteria | None = None
+    discovered_candidates: tuple[StockDiscoveryCandidate, ...] = ()
+
+    # 질문에 명시된 종목과 검증된 종목 후보를 구분하여 실제 분석 대상을 반환
+    @property
+    def analysis_stocks(self) -> tuple[ParsedStock, ...]:
+        if self.intent != "stock_discovery": # 종목 추천 의도가 아니면 질문에 명시된 종목 사용
+            return self.stocks
+        return tuple(
+            ParsedStock(item.stock_name, item.stock_name, item.stock_code, "discovered")
+            for item in self.discovered_candidates if item.business_verified and item.stock_code
+        )
 
     # 기존 단일 종목 호출부에서 첫 종목명 참조 지원
     @property
@@ -121,6 +132,7 @@ class AgentExecutionRecord:
     search_query: str | None = None
     news_start: int | None = None
     new_articles: int = 0
+    collection: dict[str, Any] | None = None  # 종목 뉴스·테마 뉴스에 동일한 수집 이력 구조 적용
 
     # LLM에 전달할 실행 이력을 직렬화
     def to_dict(self) -> dict[str, Any]:

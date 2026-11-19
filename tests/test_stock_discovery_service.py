@@ -21,7 +21,8 @@ REFERENCES = [{"stock_name": "소재기업A", "stock_code": "000001", "market": 
 # 원문 추출 성공·발행 시각·출처를 갖춘 수집 응답
 @pytest.fixture
 def payload():
-    return {"items": [{"title": "소재기업A 사업", "originallink": "https://www.hankyung.com/article/1",
+    return {"collection": {"query": "반도체 소재 관련주", "start": 1, "next_start": None},
+        "items": [{"title": "소재기업A 사업", "originallink": "https://www.hankyung.com/article/1",
         "description": "요약", "pubDate": "Thu, 05 Nov 2026 12:00:00 +0900",
         "original_article": {"status": "success", "body": QUOTE + " 추가 상세 본문.",
                              "publisher": "한국경제"}}]}
@@ -48,7 +49,7 @@ def dependencies(monkeypatch, payload):
 def _discover(**kwargs):
     options = {"stock_infos": REFERENCES, "client": Mock()}
     options.update(kwargs)
-    return service.discover_theme_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)
+    return service.discover_theme_stocks(StockDiscoveryCriteria("반도체 소재", 3), **options)["candidates"]
 
 
 # 기준정보 코드와 원문 전체·인용·출처를 보존하며 최종 개수와 검토 상한을 분리
@@ -64,7 +65,7 @@ def test_verified_candidate(dependencies):
     assert candidate.evidence[0].published_date == "2026-11-05"
     assert candidate.evidence[0].publisher == "한국경제"
     assert analyze.call_args.args[2] == 10
-    assert collect.call_args.args == ("반도체 소재", "2026-11-01", "2026-11-05")
+    assert collect.call_args.args == ("반도체 소재 관련주", "2026-11-01", "2026-11-05")
     assert collect.call_args.kwargs["start"] == 1
     collect.assert_called_once()
 
@@ -147,7 +148,8 @@ def test_preflight_validation(dependencies):
         _discover(deadline=time.monotonic() - 1)
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
         _discover(client=None, app_settings=replace(settings, openai_api_key=None))
-    assert _discover(stock_infos=[]) == []
+    with pytest.raises(ValueError, match="no valid stock codes"):
+        _discover(stock_infos=[])
     dependencies[0].assert_not_called()
 
 
@@ -174,7 +176,7 @@ def test_mocked_end_to_end(monkeypatch, payload):
     # 검색 응답·robots.txt·기사 HTML만 제공
     def respond(request):
         if request.url.host == "openapi.naver.com":
-            assert request.url.params["query"] == "반도체 소재"
+            assert request.url.params["query"] == "반도체 소재 관련주"
             return httpx.Response(200, json=payload)
         text = "User-agent: *\nDisallow:\n" if request.url.path == "/robots.txt" else "<article>본문</article>"
         return httpx.Response(200, text=text)
@@ -185,3 +187,48 @@ def test_mocked_end_to_end(monkeypatch, payload):
     assert result[0].stock_code == "000001"
     assert result[0].evidence[0].excerpt == QUOTE
     connection.responses.create.assert_called_once()
+
+
+# 관련주 검색어 중복 방지와 한 페이지 단위 수집·이력 반환 검증
+@pytest.mark.parametrize("theme,query", [("반도체 소재", "반도체 소재 관련주"),
+                                        (" 반도체 소재 관련주 ", "반도체 소재 관련주")])
+def test_discovery_page_and_query(dependencies, payload, theme, query):
+    payload["collection"].update(query=query, start=31)
+    result = service.discover_theme_stocks(StockDiscoveryCriteria(theme, 3), start=31,
+                                          stock_infos=REFERENCES, client=Mock())
+    assert dependencies[0].call_args.args[0] == query
+    assert dependencies[0].call_args.kwargs["start"] == 31
+    assert len(result["candidates"]) == 1
+    assert result["collection"] == payload["collection"]
+
+
+# 원문 부재·후보 추출 0건·코드 불일치에도 다음 페이지 정보를 유지
+@pytest.mark.parametrize("stage", ["body", "llm", "mapping"])
+def test_empty_candidates_keep_collection(dependencies, payload, stage):
+    payload["collection"]["next_start"] = 31
+    if stage == "body":
+        payload["items"][0]["original_article"]["status"] = "unsupported_publisher"
+    else:
+        dependencies[1].return_value = DiscoveryAnalysis(candidates=[]) if stage == "llm" else _analysis(name="없는기업")
+    result = service.discover_theme_stocks(StockDiscoveryCriteria("소재", 3), stock_infos=REFERENCES, client=Mock())
+    assert result["candidates"] == []
+    assert result["collection"]["next_start"] == 31
+
+
+# 동일 후보의 중복 URL 제거와 페이지 간 신규 근거 병합에 공통 함수 사용
+def test_merge_discovery_candidates(dependencies):
+    candidate = _discover()[0]
+    new_source = replace(candidate.evidence[0], url="https://example.test/second")
+    incoming = replace(candidate, evidence=candidate.evidence + (new_source,))
+    merged = service.merge_discovery_candidates((candidate,), (incoming,), 10)
+    assert len(merged) == 1
+    assert len(merged[0].evidence) == 2
+    assert len({item.url for item in merged[0].evidence}) == 2
+
+
+# 지원하지 않는 페이지나 검증되지 않은 후보를 외부 조회에 사용하지 않음
+@pytest.mark.parametrize("start", [0, 2, 61, True, "31"])
+def test_invalid_discovery_page(dependencies, start):
+    with pytest.raises(ValueError, match="start"):
+        _discover(start=start)
+    dependencies[0].assert_not_called()

@@ -1,5 +1,6 @@
 from typing import Any
 from dataclasses import asdict
+from datetime import datetime
 from src.domain.stock_models import StockTrend
 from src.domain.advice_models import AgentExecutionRecord, ParsedQuestion
 
@@ -21,7 +22,7 @@ def build_stock_context(
         (item.get("stock_code"), item.get("url") or item.get("news_id")
          or (item["title"], item["published_date"])) for item in news
     }
-    return {
+    context = {
         "question": {
             "original_question": parsed_question.original_question,
             "intent": parsed_question.intent,
@@ -39,6 +40,24 @@ def build_stock_context(
         "summary": {"news_count": len(article_keys), "news_chunk_count": len(news)},
         "issues": list(issues or []),
     }
+    candidate = next((item for item in parsed_question.discovered_candidates
+                      if item.stock_code == stock_data.get("stock_code")), None)
+    if candidate is not None:
+        context["discovery_candidate"] = candidate.to_dict()
+    return context
+
+
+# 요청 기간을 포함하고 재수집 대기 시간 안에 있는 이력 확인
+# _allowed_agent_actions(), decide_next_action() 에 공통 사용
+def recent_news_collections(context: StockContext, checked_at: datetime, refresh_seconds: float) -> list[dict]:
+    period = context.get("news_period")
+    if not period:
+        return []
+    return sorted([
+        item for item in context.get("news_collections", [])
+        if item["start_date"] <= period["start_date"] and item["end_date"] >= period["end_date"]
+        and 0 <= (checked_at - datetime.fromisoformat(item["collected_at"])).total_seconds() < refresh_seconds
+    ], key=lambda item: item["collected_at"])
 
 
 # 응답 생성에 필요한 뉴스 필드만 추림
@@ -67,7 +86,9 @@ def attach_agent_results(
         issues = list(context.get("issues", [])) + notes
         if not context.get("availability", {}).get("stock", True):
             issues.append("해당 종목의 기준일 주가·추세를 확보하지 못했습니다.")
-        if not context["news"]:
+        if context.get("news_search_status") == "failed":
+            issues.append("뉴스 검색 실패로 질문 기간의 기사 유무를 판단하지 못했습니다.")
+        elif not context["news"]:
             issues.append("질문 기간에 맞는 뉴스 근거가 부족합니다.")
         context["issues"] = list(dict.fromkeys(issues))
         context["agent_history"] = [record.to_dict() for record in history]

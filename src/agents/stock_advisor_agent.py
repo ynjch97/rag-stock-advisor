@@ -1,4 +1,5 @@
 import atexit
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 import json
@@ -10,11 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from src.config.settings import Settings, settings
 from src.domain.advice_models import AgentDecision, AgentExecutionRecord, ParsedQuestion
 from src.services.execution_budget import remaining_timeout
+from src.services.stock_context_service import recent_news_collections
 
 
 class _DecisionOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    action: Literal["respond", "collect_stock", "collect_news", "search_news", "stop"]
+    action: Literal["respond", "collect_stock", "collect_news", "search_news", "discover_stocks", "stop"]
     reason: str = Field(min_length=1, max_length=1000)
     stock_code: str | None
     search_query: str | None = Field(max_length=500)
@@ -34,6 +36,12 @@ AGENT_INSTRUCTIONS = """국내 주식 조사 Controller로서 다음 작업 하�
 투자 답변은 생성하지 않는다. 검증된 stock_code만 쓰고 기간·종목을 임의로 확장하지 않는다.
 respond=근거 충분, collect_stock=주가·추세 보충, collect_news=뉴스 수집·인덱싱·재검색,
 search_news=질문을 재작성하여 기존 인덱스 재검색, stop=한계·실패·근거 부족을 명시하고 종료이다.
+discover_stocks=테마 관련 기업을 발굴·검증한다. stock_code와 search_query는 null, news_start는 허용된 1 또는 31이다.
+contexts가 없는 발굴 단계에서 후보 부족·다음 페이지 허용 시 discover_stocks로 이어본다.
+contexts가 있는 후보 분석 단계에서는 해당 후보의 주가·뉴스만 보충하며 발굴을 새로 시작하지 않는다.
+analysis_stocks의 role=discovered는 발굴 후보이며 question.stocks에 명시된 종목과 구분한다.
+발굴과 각 후보 분석은 각각 별도의 결정 예산을 사용하며 최종 추천 종목 선정은 수행하지 않는다.
+news_search_status=failed이면 기사 0건이 아니라 검색 실패이다. news_search_error를 종료 사유로 사용한다.
 기사 수는 URL 단위로 세며 청크 수나 상대 hybrid_score만으로 충분하다고 판단하지 않는다.
 최신성은 기사 발행일과 news_collections의 collected_at을 함께 보며 과거 질문에 오늘 기사를 요구하지 않는다.
 뉴스 0건·수집 시각 불명·질문에 필요한 실적이나 원인 후보가 없으면 허용된 보충 작업을 검토한다.
@@ -59,23 +67,37 @@ def decide_next_action(
         timeout=remaining_timeout(deadline, app_settings.agent_request_timeout_seconds), max_retries=0,
     )
     evidence = []
+    checked_at = datetime.now(timezone(timedelta(hours=9)))
     for context in contexts:
-        evidence.append({**context, "news_collections": context.get("news_collections", [])[-10:], "news": [
-            {**item, "content": item.get("content", "")[:1500]} for item in context["news"][:5]
-        ]})
+        discovery = context.get("discovery_candidate")
+        item = {**context,
+            "news_collections": recent_news_collections(context, checked_at, app_settings.agent_news_refresh_seconds)[-10:],
+            "news": [{**news, "content": news.get("content", "")[:1500]} for news in context["news"][:5]]}
+        if discovery:
+            item["discovery_candidate"] = {
+                **discovery, "evidence": [{key: value for key, value in source.items() if key != "content"}
+                                         for source in discovery["evidence"]]}
+        evidence.append(item)
     options = {}
     if app_settings.openai_model.startswith(("gpt-5", "o1", "o3", "o4")):
         options["reasoning"] = {"effort": app_settings.openai_reasoning}
     tool_name = "submit_agent_decision"
+    schema = _DecisionOutput.model_json_schema()
+    schema["properties"]["action"]["enum"] = sorted({item["action"] for item in allowed_actions})
+    if not schema["properties"]["action"]["enum"]:
+        raise ValueError("Agent requires at least one allowed action.")
     try:
         response = connection.responses.create(
             model=app_settings.openai_model, instructions=AGENT_INSTRUCTIONS,
-            input=json.dumps({"question": parsed_question.to_dict(), "contexts": evidence,
+            input=json.dumps({"question": {key: value for key, value in parsed_question.to_dict().items()
+                                          if key != "discovered_candidates"},
+                              "analysis_stocks": [asdict(stock) for stock in parsed_question.analysis_stocks],
+                              "contexts": evidence,
                               "history": [record.to_dict() for record in history],
                               "allowed_actions": allowed_actions,
-                              "checked_at": datetime.now(timezone(timedelta(hours=9))).isoformat()}, ensure_ascii=False),
+                              "checked_at": checked_at.isoformat()}, ensure_ascii=False),
             tools=[{"type": "function", "name": tool_name, "description": "다음에 필요한 조사 작업 하나를 선택한다.",
-                    "parameters": _DecisionOutput.model_json_schema(), "strict": True}],
+                    "parameters": schema, "strict": True}],
             tool_choice={"type": "function", "name": tool_name}, parallel_tool_calls=False,
             max_output_tokens=2000, store=False, **options,
         )
@@ -88,10 +110,14 @@ def decide_next_action(
         output = _DecisionOutput.model_validate_json(calls[0].arguments)
     except ValidationError:
         raise ValueError("OpenAI Agent decision does not match the required schema.") from None
-    stock = next((stock for stock in parsed_question.stocks if stock.stock_code == output.stock_code), None)
+    stock = next((stock for stock in parsed_question.analysis_stocks if stock.stock_code == output.stock_code), None)
     if output.action in ("respond", "stop"):
         if output.stock_code is not None or output.search_query is not None or output.news_start is not None:
             raise ValueError("Terminal Agent decisions must not include tool arguments.")
+    elif output.action == "discover_stocks":
+        if (contexts or parsed_question.discovery is None or parsed_question.intent != "stock_discovery"
+                or output.stock_code is not None or output.search_query is not None or output.news_start is None):
+            raise ValueError("Discovery requires a theme and page without stock or query arguments.")
     elif stock is None:
         raise ValueError("Agent selected an unverified stock.")
     if ((output.action == "collect_stock" and (output.search_query is not None or output.news_start is not None))
@@ -99,7 +125,7 @@ def decide_next_action(
             or (output.action == "search_news" and output.news_start is not None)):
         raise ValueError("Agent returned arguments for a different tool.")
     if not any(item["action"] == output.action and item.get("stock_code") == output.stock_code
-               and (output.action != "collect_news" or item.get("news_start") == output.news_start)
+               and (output.action not in ("collect_news", "discover_stocks") or item.get("news_start") == output.news_start)
                for item in allowed_actions):
         raise ValueError("Agent selected an action outside the allowed budget.")
     if output.action == "search_news" and (not output.search_query or not output.search_query.strip()

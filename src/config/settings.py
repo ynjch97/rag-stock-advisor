@@ -29,7 +29,7 @@ class Settings:
     news_api_secret: str | None = None
     vector_db_provider: str
     vector_db_path: str
-    # 질문 전체 결정, 인덱싱 예산과 종목별 추가 조회 예산
+    # 종목 추천 및 분석 단계에 각각 적용하는 결정·인덱싱·추가 조회 예산
     agent_max_decisions: int = 3
     agent_max_news_pages: int = 2
     agent_max_stock_refreshes: int = 1
@@ -37,7 +37,7 @@ class Settings:
     agent_max_indexing_calls: int = 2
     agent_max_index_chunks: int = 1000  # 인덱싱 1회 처리량 1,000청크
     agent_max_index_characters: int = 500000  # 인덱싱 1회 처리량 50만 문자
-    agent_timeout_seconds: float = 120.0  # 질문 분석 후 초기 조회, Agent 반복의 경과 시간 상한
+    agent_timeout_seconds: float = 120.0  # 초기 조회, Agent 반복 시간 상한
     agent_request_timeout_seconds: float = 20.0 # 개별 요청별 타임아웃
     agent_news_refresh_seconds: float = 900.0  # 동일 종목·기간·페이지 재수집 대기
 

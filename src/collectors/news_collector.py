@@ -143,6 +143,7 @@ def _fetch_news(
             _fetch_original_article(client, original, robots_cache)
 
     payload["collection"] = {
+        "stock_name": None, "stock_code": None,
         "query": query.strip(), "start_date": start_date, "end_date": end_date,
         "collected_at": checked_at.isoformat(),
         "start": start, "display": 30,

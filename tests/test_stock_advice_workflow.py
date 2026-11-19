@@ -344,16 +344,45 @@ def test_news_search_period_rejects_insufficient_data(days, completed, end):
         workflow._get_news_search_period("005930", days, completed, end)
 
 
-# 파서만 확장된 단계에서는 빈 종목을 기존 비교·Agent 흐름으로 넘기지 않음
-def test_discovery_stops_before_unimplemented_execution(monkeypatch, saved_daily_prices_and_news):
+# 발굴 전 Agent가 종료하면 빈 비교 응답이나 종목별 외부 조회를 수행하지 않음
+def test_discovery_stops_before_candidate_execution(monkeypatch, saved_daily_prices_and_news):
     parsed = ParsedQuestion("반도체 소재 관련주 3개 추천", (), "stock_discovery",
                             discovery=StockDiscoveryCriteria("반도체 소재", 3))
     monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
-    collector, agent = Mock(), Mock()
+    collector, agent = Mock(), Mock(return_value=AgentDecision("stop", "발굴 근거 부족"))
     monkeypatch.setattr(workflow, "collect_stock_price", collector)
     monkeypatch.setattr(workflow, "decide_next_action", agent)
     answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
-    assert "후보 검색·추천 기능은 아직 연결되지" in answer
+    assert "검증된 분석 후보를 확보하지 못했습니다" in answer
     collector.assert_not_called()
     saved_daily_prices_and_news.assert_not_called()
-    agent.assert_not_called()
+    agent.assert_called_once()
+
+
+# 실제 검색 예외를 정상 0건과 구분하고 Agent가 과거 수집 이력으로 잘못 설명하지 않음
+def test_search_error_remains_distinct_from_empty_news(monkeypatch, saved_daily_prices_and_news):
+    parsed = ParsedQuestion("SK하이닉스 최근 5거래일 분석", (ParsedStock("SK하이닉스", "SK하이닉스", "000660"),),
+                            "general_analysis")
+    monkeypatch.setattr(workflow, "parse_stock_question", Mock(return_value=parsed))
+    monkeypatch.setattr(workflow, "collect_stock_price", Mock(return_value=DailyStock(
+        "SK하이닉스", "000660", "2026-10-23", 100, 120, 90, 110, 1000, 10, 10)))
+    monkeypatch.setattr(workflow, "load_latest_stock_trend", Mock(return_value=StockTrend(
+        "SK하이닉스", "000660", "2026-10-23", 5, 5, 3, 2, "상승")))
+    monkeypatch.setattr(workflow, "_missing_news_index", Mock(return_value=False))
+    monkeypatch.setattr(workflow, "_read_news_collections", Mock(return_value=[]))
+    saved_daily_prices_and_news.side_effect = ValueError("private-index-error")
+    agent = Mock(return_value=AgentDecision("stop", "이미 기사 0건이라 수집 불가"))
+    monkeypatch.setattr(workflow, "decide_next_action", agent)
+    generator = Mock(wraps=workflow.generate_stock_advice)
+    monkeypatch.setattr(workflow, "generate_stock_advice", generator)
+    answer = run_stock_advice_workflow(parsed.original_question, replace(settings, stock_api_provider="toss"))
+    context = generator.call_args.args[0]
+    assert context["news_search_status"] == "failed"
+    assert context["availability"]["news_retryable"] is False
+    assert agent.call_args.args[3] == [{"action": "stop"}]
+    assert "뉴스 검색 실패로 기사 유무를 판단할 수 없습니다" in answer
+    assert "이미 기사 0건이라 수집 불가" not in answer
+    assert "질문 기간에 맞는 뉴스 근거가 부족합니다" not in answer
+    assert "관련 기사 0건으로 확인됩니다" not in answer
+    assert "확인된 관련 뉴스는 없습니다" not in answer
+    assert "private-index-error" not in answer

@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -20,8 +20,9 @@ from src.app.rag_indexing_workflow import collect_and_index_news
 from src.preprocessing.stock_preprocessor import load_latest_stock_trend
 from src.search.hybrid_search import search_news_hybrid
 from src.services.stock_advice_service import generate_stock_advice, generate_stock_comparison_advice
-from src.services.stock_context_service import StockContext, attach_agent_results, build_stock_context
+from src.services.stock_context_service import StockContext, attach_agent_results, build_stock_context, recent_news_collections
 from src.services.execution_budget import deadline_http_client, remaining_timeout
+from src.services.stock_discovery_service import discover_theme_stocks, merge_discovery_candidates
 
 
 TOOL_ERRORS = (ValueError, OSError, TimeoutError, httpx.HTTPError)
@@ -48,9 +49,41 @@ def run_stock_advice_workflow(question: str, app_settings: Settings = settings) 
             f"질문의 기간은 {parsed_question.period.start_date}부터 {parsed_question.period.end_date}까지입니다. "
             "현재 조회는 거래일 수 기준입니다. 최근 몇 거래일을 분석할지 알려주세요."
         )
+    if parsed_question.intent == "stock_discovery":
+        if provider == "sample":
+            return "종목 발굴 연결은 STOCK_API_PROVIDER=toss에서 지원합니다. 샘플 종목으로 대체하지 않습니다."
+        # 1. 테마 뉴스로 후보 발굴, 추가 페이지 여부 판단
+        discovery = _run_agent_loop(parsed_question, [], app_settings,
+                                    time.monotonic() + app_settings.agent_timeout_seconds)
+        parsed_question = discovery["parsed_question"]
+        if not parsed_question.discovered_candidates:
+            return "\n".join(["검증된 분석 후보를 확보하지 못했습니다.", *discovery["notes"]])
+        contexts = []
+        for candidate in parsed_question.discovered_candidates:
+            # 2. 후보마다 동일 분석 함수를 호출 -> 주가·기존 뉴스 인덱스 조회
+            # 결정·시간·인덱싱 예산을 독립 적용 (뉴스 추가 조회 여부 판단)
+            target = replace(parsed_question, discovered_candidates=(candidate,))
+            context = _analyze_stocks(target, app_settings)[0]
+            context["discovery_history"] = [record.to_dict() for record in discovery["history"]]
+            context["issues"] = list(dict.fromkeys(context["issues"] + discovery["notes"]))
+            contexts.append(context)
+    else:
+        contexts = _analyze_stocks(parsed_question, app_settings)
+    if not contexts:
+        return "분석할 종목을 확인하지 못했습니다."
+    answer = generate_stock_advice(contexts[0]) if len(contexts) == 1 else generate_stock_comparison_advice(contexts)
+    if parsed_question.intent == "stock_discovery":
+        return (f"검증된 검토 후보 {len(contexts)}개입니다. "
+                "최종 추천 종목 선정 전 단계입니다.\n\n" + answer)
+    return answer
+
+
+# 지정 종목과 발굴 후보에 공통으로 주가·기존 인덱스 조회 및 Agent 보충 작업 실행
+def _analyze_stocks(parsed_question: ParsedQuestion, app_settings: Settings) -> list[StockContext]:
+    provider = (app_settings.stock_api_provider or "").lower()
     deadline = time.monotonic() + app_settings.agent_timeout_seconds
     contexts = []
-    for stock in parsed_question.stocks:
+    for stock in parsed_question.analysis_stocks:
         if provider == "sample":
             contexts.append(_build_analysis_context(parsed_question, stock, app_settings))
             continue
@@ -68,9 +101,7 @@ def run_stock_advice_workflow(question: str, app_settings: Settings = settings) 
             contexts.append(context)
     if provider == "toss":
         _run_agent_loop(parsed_question, contexts, app_settings, deadline)
-    if len(contexts) == 1:
-        return generate_stock_advice(contexts[0])
-    return generate_stock_comparison_advice(contexts)
+    return contexts
 
 
 # 검증된 종목 하나의 가격·추세·뉴스를 기존 컨텍스트 구조로 구성
@@ -82,6 +113,7 @@ def _build_analysis_context(
     trend_data = None
     news_source = "sample"
     issues, collections, period = [], [], None
+    news_error = None
     news_retryable = True
     if provider == "sample":
         stock_data = load_latest_sample_stock(stock.stock_name)
@@ -128,7 +160,8 @@ def _build_analysis_context(
         except TOOL_ERRORS as error:
             news_retryable = isinstance(error, FileNotFoundError) and _missing_news_index(app_settings)
             news_retryable = news_retryable or _retryable(error) and not isinstance(error, FileNotFoundError)
-            issues.append(_tool_error("뉴스 검색", error))
+            news_error = _tool_error("뉴스 검색", error)
+            issues.append(news_error)
         news_source = "hybrid_search"
 
     context = build_stock_context(
@@ -140,6 +173,8 @@ def _build_analysis_context(
         issues=issues,
     )
     context.update(news_period=period, news_collections=collections, checked_at=datetime.now(KST).isoformat(),
+                   news_search_status="failed" if news_error else ("found" if news_data else "empty"),
+                   news_search_error=news_error,
                    availability={"stock": True, "stock_retryable": True, "news_retryable": news_retryable})
     return context
 
@@ -209,11 +244,24 @@ def _read_news_collections(stock_code: str, app_settings: Settings) -> list[dict
 def _allowed_agent_actions(parsed: ParsedQuestion, contexts: list[StockContext], history: list[AgentExecutionRecord],
                            indexing_calls: int, app_settings: Settings) -> list[dict]:
     allowed = [{"action": "stop"}]
+    if parsed.intent == "stock_discovery" and not contexts:
+        records = [record for record in history if record.action == "discover_stocks"]
+        if parsed.discovery is None:
+            return allowed
+        pages = {record.news_start for record in records}
+        target = min(parsed.discovery.requested_count, app_settings.agent_max_discovery_candidates)
+        if not records and app_settings.agent_max_news_pages >= 1:
+            allowed.insert(0, {"action": "discover_stocks", "news_start": 1})
+        elif (len(parsed.discovered_candidates) < target and pages == {1}
+              and len(pages) < min(2, app_settings.agent_max_news_pages) and records[-1].success
+              and (records[-1].collection or {}).get("next_start") == 31):
+            allowed.insert(0, {"action": "discover_stocks", "news_start": 31})
+        return allowed
     # 최소 근거조차 없으면 LLM이 충분하다고 선언하지 못하도록 하며 부분 응답은 stop으로 처리
-    if all(context["availability"]["stock"] and context["news"] for context in contexts):
+    if contexts and all(context["availability"]["stock"] and context["news"] for context in contexts):
         allowed.insert(0, {"action": "respond"})
     now = datetime.now(KST)
-    for stock, context in zip(parsed.stocks, contexts):
+    for stock, context in zip(parsed.analysis_stocks, contexts):
         code, availability = stock.stock_code, context["availability"]
         records = [record for record in history if record.stock_code == code]
         stale_price = context["stock"].get("price_type") == "realtime" and (
@@ -228,10 +276,7 @@ def _allowed_agent_actions(parsed: ParsedQuestion, contexts: list[StockContext],
         if indexing_calls >= app_settings.agent_max_indexing_calls:
             continue
         pages = {record.news_start for record in records if record.action == "collect_news"}
-        recent = [item for item in context["news_collections"]
-                  if item["start_date"] <= period["start_date"] and item["end_date"] >= period["end_date"]
-                  and 0 <= (now - datetime.fromisoformat(item["collected_at"])).total_seconds()
-                  < app_settings.agent_news_refresh_seconds]
+        recent = recent_news_collections(context, now, app_settings.agent_news_refresh_seconds)
         pages.update(item.get("start", 1) for item in recent)
         if len(pages) >= app_settings.agent_max_news_pages:
             continue
@@ -253,7 +298,7 @@ def _evidence_signature(context: StockContext) -> tuple:
 
 # LLM 판단 -> 허용 작업만 실행 -> 결과 재평가
 # 결정, 페이지·인덱싱, 시간 제한을 코드로 강제
-def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_settings: Settings, deadline: float) -> None:
+def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_settings: Settings, deadline: float) -> dict:
     history, notes, indexing_calls = [], [], 0
     for _ in range(app_settings.agent_max_decisions):
         try:
@@ -262,17 +307,42 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
             decision = decide_next_action(parsed, contexts, history, allowed, app_settings=app_settings, deadline=deadline) # 다음 작업 대상
             code = decision.stock.stock_code if decision.stock is not None else None
             if not any(item["action"] == decision.action and item.get("stock_code") == code
-                       and (decision.action != "collect_news" or item["news_start"] == decision.news_start)
+                       and (decision.action not in ("collect_news", "discover_stocks")
+                            or item["news_start"] == decision.news_start)
                        for item in allowed):
                 raise ValueError("Agent action exceeds the allowed budget.")
             if decision.action in ("respond", "stop"):
                 history.append(AgentExecutionRecord(decision.action, None, True, decision.reason))
                 if decision.action == "stop":
-                    notes.append(f"추가 조사 중단: {decision.reason}")
+                    reason = ("뉴스 검색 실패로 기사 유무를 판단할 수 없습니다. 인덱스·검색 설정 확인이 필요합니다."
+                              if any(context.get("news_search_status") == "failed" for context in contexts)
+                              else decision.reason)
+                    notes.append(f"추가 조사 중단: {reason}")
                 break
             remaining_timeout(deadline)
-            position = next(i for i, stock in enumerate(parsed.stocks) if stock.stock_code == code)
-            context, stock = contexts[position], parsed.stocks[position]
+            if decision.action == "discover_stocks":
+                try:
+                    result = discover_theme_stocks(parsed.discovery, start=decision.news_start,
+                                                  app_settings=app_settings, deadline=deadline)
+                    remaining_timeout(deadline)
+                    candidates = merge_discovery_candidates(parsed.discovered_candidates, result["candidates"],
+                                                            app_settings.agent_max_discovery_candidates)
+                    parsed = replace(parsed, discovered_candidates=candidates)
+                    history.append(AgentExecutionRecord("discover_stocks", None, True, decision.reason,
+                        result["collection"]["query"], decision.news_start, collection=result["collection"]))
+                except TOOL_ERRORS as error:
+                    reason = _tool_error("종목 발굴", error)
+                    history.append(AgentExecutionRecord("discover_stocks", None, False, reason, news_start=decision.news_start))
+                    notes.append(reason)
+                    break
+                if any(item["action"] == "discover_stocks" for item in
+                       _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings)):
+                    continue
+                if not candidates:
+                    notes.append("테마 뉴스에서 종목코드·사업 연관 근거가 확인된 후보가 없습니다.")
+                break
+            position = next(i for i, stock in enumerate(parsed.analysis_stocks) if stock.stock_code == code)
+            context, stock = contexts[position], parsed.analysis_stocks[position]
             query = (decision.search_query or parsed.original_question).strip()
             if decision.action == "search_news" and (query.casefold() == parsed.original_question.strip().casefold()
                 or any(record.stock_code == code and record.search_query and record.search_query.casefold() == query.casefold()
@@ -297,16 +367,20 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
                     context["news"] = news
                     context["summary"] = {"news_count": len({item["url"] for item in news}), "news_chunk_count": len(news)}
                     context["news_collections"] = _read_news_collections(code, app_settings)
+                    context.update(news_search_status="found" if news else "empty", news_search_error=None)
                     context["issues"] = [issue for issue in context["issues"]
                                          if not issue.startswith(("뉴스 검색 실패", "기존 뉴스 인덱스"))]
                 history.append(AgentExecutionRecord(decision.action, code, True, decision.reason, query,
-                                                    decision.news_start, new_articles))
+                                                    decision.news_start, new_articles,
+                                                    collection=result.get("collection") if decision.action == "collect_news" else None))
             except TOOL_ERRORS as error:
                 reason = _tool_error("추가 " + decision.action, error)
                 history.append(AgentExecutionRecord(decision.action, code, False, reason, query, decision.news_start))
                 contexts[position]["issues"].append(reason)
                 contexts[position]["availability"]["stock_retryable" if decision.action == "collect_stock"
                                                      else "news_retryable"] = False
+                if decision.action != "collect_stock":
+                    contexts[position].update(news_search_status="failed", news_search_error=reason)
                 continue
             if before == _evidence_signature(contexts[position]) and new_articles == 0:
                 # 최신 기사만 받은 첫 페이지는 목표 기간에 도달하지 못한 것일 수 있음
@@ -324,6 +398,7 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
     else:
         notes.append(f"Agent 결정 횟수 상한({app_settings.agent_max_decisions}회)에 도달했습니다.")
     attach_agent_results(contexts, history, notes)
+    return {"parsed_question": parsed, "history": history, "notes": notes}
 
 
 # 수집된 완료 일봉으로 최근 n거래일의 시작일 결정 (장중 뉴스는 당일까지 포함)

@@ -10,12 +10,17 @@ def generate_stock_advice(context: StockContext) -> str:
     question = context["question"]
     summary = context["summary"]
     news = context["news"]
+    discovery = context.get("discovery_candidate")
 
     stock_overview = _build_stock_overview(stock)
     news_overview = _build_news_overview(summary)
     if context.get("data_sources", {}).get("news") == "sample":
         news_overview = "샘플 " + news_overview
     key_news = _build_key_news(news)
+    if context.get("news_search_status") == "failed":
+        news_overview = "뉴스 검색에 실패하여 현재 검색 결과의 기사 수를 확인하지 못했습니다."
+        key_news = (_build_key_news(news) if news else
+                    "검색 실패를 관련 기사 부재로 판단할 수 없습니다.")
     conclusion = _build_conclusion(question["intent"], stock)
 
     return "\n".join(
@@ -23,6 +28,9 @@ def generate_stock_advice(context: StockContext) -> str:
             f"[{stock['stock_name']} 간단 분석]",
             "",
             stock_overview,
+            *([f"발굴 이유: {discovery['selection_reason']}", *[
+                f"- 발굴 출처: {item['title']} | {item['url']}" for item in discovery["evidence"]
+            ]] if discovery else []),
             news_overview,
             key_news,
             "",

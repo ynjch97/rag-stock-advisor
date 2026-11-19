@@ -1,7 +1,8 @@
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 
 from src.domain.advice_models import ParsedQuestion, ParsedStock
-from src.services.stock_context_service import build_stock_context
+from src.services.stock_context_service import build_stock_context, recent_news_collections
 
 
 def test_build_stock_context_combines_question_stock_and_news():
@@ -72,3 +73,18 @@ def test_empty_hybrid_news_context():
     assert context["news"] == []
     assert context["summary"] == {"news_count": 0, "news_chunk_count": 0}
     assert context["data_sources"]["news"] == "hybrid_search"
+
+
+# 기간 불일치·미래 수집·오래된 수집은 제외하되 같은 기간의 두 페이지는 모두 보존
+def test_recent_collection_history_matches_period_and_age():
+    now = datetime(2026, 11, 19, 12, tzinfo=timezone(timedelta(hours=9)))
+    first = {"start_date": "2026-11-11", "end_date": "2026-11-18", "collected_at": now.isoformat(),
+             "start": 1, "article_count": 0, "next_start": 31}
+    second = {**first, "start": 31, "article_count": 28, "next_start": None}
+    context = {"news_period": {"start_date": "2026-11-11", "end_date": "2026-11-18"}, "news_collections": [
+        {**first, "end_date": "2026-11-12"},
+        {**first, "collected_at": (now - timedelta(hours=1)).isoformat()},
+        {**first, "collected_at": (now + timedelta(seconds=1)).isoformat()}, first, second,
+    ]}
+    assert recent_news_collections(context, now, 900) == [first, second]
+    assert recent_news_collections({"news_collections": [first]}, now, 900) == []

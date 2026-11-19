@@ -72,11 +72,26 @@ def test_collect_theme_query_without_stock_code(config, payload, monkeypatch):
         result = collector.collect_theme_news("반도체 소재", app_settings=config, http_client=client,
             now=datetime.fromisoformat("2026-11-05T12:00:00+09:00"))
     assert result["collection"]["query"] == "반도체 소재"
-    assert "stock_code" not in result["collection"]
-    assert "stock_name" not in result["collection"]
+    assert result["collection"]["stock_code"] is None
+    assert result["collection"]["stock_name"] is None
     assert result["collection"]["start_date"] is None
     assert result["items"][0]["original_article"]["status"] == "success"
     assert len(requests) == 3
+
+
+# 테마·종목 수집은 같은 collection 필드를 사용하며 종목코드는 종목 수집 시에만 확정
+def test_stock_and_theme_collection_schema(tmp_path, config):
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"items": []}))) as client:
+        options = {"app_settings": config, "http_client": client,
+                   "now": datetime.fromisoformat("2026-11-05T12:00:00+09:00")}
+        theme = collector.collect_theme_news("반도체 관련주", "2026-11-01", "2026-11-05", **options)
+        stock = collector.collect_and_save_news("삼성전자", "005930", "2026-11-01", "2026-11-05",
+                                                file_path=tmp_path / "news.json", **options)
+    assert set(theme["collection"]) == set(stock["collection"])
+    assert theme["collection"]["stock_code"] is None
+    assert stock["collection"]["stock_code"] == "005930"
+    assert json.loads((tmp_path / "news.json").read_text(encoding="utf-8"))["collection"] == stock["collection"]
+    assert len(list(tmp_path.iterdir())) == 1
 
 
 # 테마 검색도 빈 검색어·부분 날짜 범위·미래 기간은 API 요청 전에 거부
