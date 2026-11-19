@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "SK텔레콤",
+    "stock_code": "017670",
+    "base_date": "2026-11-13",
+    "open": 82000,
+    "high": 85700,
+    "low": 80500,
+    "close": 84700,
+    "volume": 1413605,
+    "change_rate": 4.7,
+    "change_price": 3800
+  },
+  {
+    "stock_name": "SK텔레콤",
+    "stock_code": "017670",
+    "base_date": "2026-11-16",
+    "open": 85000,
+    "high": 86200,
+    "low": 83600,
+    "close": 84300,
+    "volume": 1474724,
+    "change_rate": -0.47,
+    "change_price": -400
+  },
+  {
+    "stock_name": "SK텔레콤",
+    "stock_code": "017670",
+    "base_date": "2026-11-17",
+    "open": 83300,
+    "high": 84000,
+    "low": 80900,
+    "close": 82900,
+    "volume": 1373553,
+    "change_rate": -1.66,
+    "change_price": -1400
+  },
+  {
+    "stock_name": "SK텔레콤",
+    "stock_code": "017670",
+    "base_date": "2026-11-18",
+    "open": 83700,
+    "high": 86200,
+    "low": 79700,
+    "close": 83300,
+    "volume": 1532793,
+    "change_rate": 0.48,
+    "change_price": 400
+  },
+  {
+    "stock_name": "SK텔레콤",
+    "stock_code": "017670",
+    "base_date": "2026-11-19",
+    "open": 82400,
+    "high": 83700,
+    "low": 76200,
+    "close": 82200,
+    "volume": 2109255,
+    "change_rate": -1.32,
+    "change_price": -1100
+  }
+]

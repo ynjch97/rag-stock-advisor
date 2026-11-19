@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-13",
+    "open": 51600,
+    "high": 51700,
+    "low": 50700,
+    "close": 51000,
+    "volume": 436348,
+    "change_rate": -1.35,
+    "change_price": -700
+  },
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-16",
+    "open": 50800,
+    "high": 52200,
+    "low": 50700,
+    "close": 51600,
+    "volume": 355689,
+    "change_rate": 1.18,
+    "change_price": 600
+  },
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-17",
+    "open": 51400,
+    "high": 51900,
+    "low": 50400,
+    "close": 50900,
+    "volume": 395299,
+    "change_rate": -1.36,
+    "change_price": -700
+  },
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-18",
+    "open": 51000,
+    "high": 51000,
+    "low": 49500,
+    "close": 49850,
+    "volume": 468711,
+    "change_rate": -2.06,
+    "change_price": -1050
+  },
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-19",
+    "open": 49050,
+    "high": 49400,
+    "low": 46800,
+    "close": 47650,
+    "volume": 873008,
+    "change_rate": -4.41,
+    "change_price": -2200
+  }
+]

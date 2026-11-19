@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "KT",
+    "stock_code": "030200",
+    "base_date": "2026-11-19",
+    "recent_days": 5,
+    "recent_change_rate": -6.57,
+    "up_days": 1,
+    "down_days": 4,
+    "trend": "최근 5거래일 하락"
+  }
+]

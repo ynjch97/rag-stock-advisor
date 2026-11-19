@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "우리로",
+    "stock_code": "046970",
+    "base_date": "2026-11-13",
+    "open": 6900,
+    "high": 7210,
+    "low": 6800,
+    "close": 7000,
+    "volume": 643349,
+    "change_rate": 3.09,
+    "change_price": 210
+  },
+  {
+    "stock_name": "우리로",
+    "stock_code": "046970",
+    "base_date": "2026-11-16",
+    "open": 6930,
+    "high": 7020,
+    "low": 6210,
+    "close": 6230,
+    "volume": 585016,
+    "change_rate": -11.0,
+    "change_price": -770
+  },
+  {
+    "stock_name": "우리로",
+    "stock_code": "046970",
+    "base_date": "2026-11-17",
+    "open": 6060,
+    "high": 6280,
+    "low": 5970,
+    "close": 6030,
+    "volume": 395439,
+    "change_rate": -3.21,
+    "change_price": -200
+  },
+  {
+    "stock_name": "우리로",
+    "stock_code": "046970",
+    "base_date": "2026-11-18",
+    "open": 6310,
+    "high": 6340,
+    "low": 5770,
+    "close": 6150,
+    "volume": 562127,
+    "change_rate": 1.99,
+    "change_price": 120
+  },
+  {
+    "stock_name": "우리로",
+    "stock_code": "046970",
+    "base_date": "2026-11-19",
+    "open": 6060,
+    "high": 6120,
+    "low": 5850,
+    "close": 6060,
+    "volume": 467584,
+    "change_rate": -1.46,
+    "change_price": -90
+  }
+]
