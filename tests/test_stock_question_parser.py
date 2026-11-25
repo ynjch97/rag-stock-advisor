@@ -98,6 +98,23 @@ def test_existing_stock_does_not_refresh(references):
     collector.assert_not_called()
 
 
+# 질문 원문이 기준정보와 일치하면 LLM 해석 이름보다 우선 사용
+@pytest.mark.parametrize("name", ["현대자동차", "SK하이닉스", None])
+def test_original_stock_name_takes_priority(monkeypatch, references, name):
+    loader, collector = references
+    loader.return_value.append({"stock_name": "현대차", "stock_code": "005380", "market": "KOSPI"})
+    analysis = parser.analyze_stock_question("삼성전자 전망").model_copy(update={
+        "stocks": [parser.AnalyzedStock(mention="현대차", stock_name=name, role="subject")],
+    })
+    monkeypatch.setattr(parser, "analyze_stock_question", Mock(return_value=analysis))
+
+    parsed = parse_stock_question("현대차 주가 분석")
+
+    assert not parsed.needs_clarification
+    assert parsed.stock_name == "현대차" and parsed.stock_code == "005380"
+    collector.assert_not_called()
+
+
 # 파일이 없을 때 최초 수집 후 바로 질문 분석
 def test_missing_file_collects_once(references):
     loader, collector = references

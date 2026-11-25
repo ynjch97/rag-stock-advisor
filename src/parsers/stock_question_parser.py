@@ -87,6 +87,9 @@ def _resolve_stock(item: AnalyzedStock, records: list[dict[str, str]]) -> Parsed
     matches = [record for record in records if record["stock_code"] == item.mention.strip()]
     if not matches:
         matches = [record for record in records if _normalize_name(record["stock_name"]) ==
+                   _normalize_name(item.mention)]
+    if not matches:
+        matches = [record for record in records if _normalize_name(record["stock_name"]) ==
                    _normalize_name(item.stock_name or item.mention)]
     unique = {record["stock_code"]: record for record in matches}
     if len(unique) != 1:
