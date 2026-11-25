@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "하나투어",
+    "stock_code": "039130",
+    "base_date": "2026-11-19",
+    "recent_days": 5,
+    "recent_change_rate": 19.48,
+    "up_days": 4,
+    "down_days": 1,
+    "trend": "최근 5거래일 상승"
+  },
+  {
+    "stock_name": "하나투어",
+    "stock_code": "039130",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": -10.0,
+    "up_days": 2,
+    "down_days": 3,
+    "trend": "최근 5거래일 하락"
+  }
+]

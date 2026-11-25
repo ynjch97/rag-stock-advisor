@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-19",
+    "recent_days": 5,
+    "recent_change_rate": 23.91,
+    "up_days": 4,
+    "down_days": 1,
+    "trend": "최근 5거래일 상승"
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": -3.29,
+    "up_days": 3,
+    "down_days": 2,
+    "trend": "최근 5거래일 하락"
+  }
+]

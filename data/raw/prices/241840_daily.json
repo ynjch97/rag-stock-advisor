@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "에이스토리",
+    "stock_code": "241840",
+    "base_date": "2026-11-19",
+    "open": 2730,
+    "high": 2730,
+    "low": 2480,
+    "close": 2560,
+    "volume": 1461751,
+    "change_rate": -6.57,
+    "change_price": -180
+  },
+  {
+    "stock_name": "에이스토리",
+    "stock_code": "241840",
+    "base_date": "2026-11-20",
+    "open": 2495,
+    "high": 2500,
+    "low": 1970,
+    "close": 1991,
+    "volume": 1976572,
+    "change_rate": -22.23,
+    "change_price": -569
+  },
+  {
+    "stock_name": "에이스토리",
+    "stock_code": "241840",
+    "base_date": "2026-11-23",
+    "open": 1970,
+    "high": 2135,
+    "low": 1946,
+    "close": 1995,
+    "volume": 489901,
+    "change_rate": 0.2,
+    "change_price": 4
+  },
+  {
+    "stock_name": "에이스토리",
+    "stock_code": "241840",
+    "base_date": "2026-11-24",
+    "open": 2000,
+    "high": 2005,
+    "low": 1877,
+    "close": 1956,
+    "volume": 321459,
+    "change_rate": -1.95,
+    "change_price": -39
+  },
+  {
+    "stock_name": "에이스토리",
+    "stock_code": "241840",
+    "base_date": "2026-11-25",
+    "open": 1938,
+    "high": 2100,
+    "low": 1932,
+    "close": 1999,
+    "volume": 204188,
+    "change_rate": 2.2,
+    "change_price": 43
+  }
+]

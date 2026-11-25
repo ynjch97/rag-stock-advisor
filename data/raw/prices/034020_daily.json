@@ -58,5 +58,113 @@
     "volume": 4489047,
     "change_rate": -3.76,
     "change_price": -2300
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-13",
+    "open": 46900,
+    "high": 48850,
+    "low": 46300,
+    "close": 47150,
+    "volume": 3830161,
+    "change_rate": 1.07,
+    "change_price": 500
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-16",
+    "open": 47150,
+    "high": 47550,
+    "low": 44200,
+    "close": 44400,
+    "volume": 3287848,
+    "change_rate": -5.83,
+    "change_price": -2750
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-17",
+    "open": 44000,
+    "high": 44350,
+    "low": 42100,
+    "close": 42150,
+    "volume": 3567369,
+    "change_rate": -5.07,
+    "change_price": -2250
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-18",
+    "open": 42700,
+    "high": 43850,
+    "low": 41550,
+    "close": 43400,
+    "volume": 3895377,
+    "change_rate": 2.97,
+    "change_price": 1250
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-19",
+    "open": 43050,
+    "high": 43950,
+    "low": 41700,
+    "close": 43850,
+    "volume": 3018120,
+    "change_rate": 1.04,
+    "change_price": 450
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-20",
+    "open": 42100,
+    "high": 42950,
+    "low": 40150,
+    "close": 40250,
+    "volume": 3516563,
+    "change_rate": -8.21,
+    "change_price": -3600
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-23",
+    "open": 40250,
+    "high": 40750,
+    "low": 38000,
+    "close": 40200,
+    "volume": 4464382,
+    "change_rate": -0.12,
+    "change_price": -50
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-24",
+    "open": 42350,
+    "high": 43400,
+    "low": 40850,
+    "close": 41400,
+    "volume": 4304724,
+    "change_rate": 2.99,
+    "change_price": 1200
+  },
+  {
+    "stock_name": "두산에너빌리티",
+    "stock_code": "034020",
+    "base_date": "2026-11-25",
+    "open": 41650,
+    "high": 41650,
+    "low": 39600,
+    "close": 39900,
+    "volume": 2948765,
+    "change_rate": -3.62,
+    "change_price": -1500
   }
 ]

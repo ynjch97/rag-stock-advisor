@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-19",
+    "recent_days": 5,
+    "recent_change_rate": 31.09,
+    "up_days": 3,
+    "down_days": 2,
+    "trend": "최근 5거래일 상승"
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": 0.57,
+    "up_days": 3,
+    "down_days": 2,
+    "trend": "최근 5거래일 상승"
+  }
+]

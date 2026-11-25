@@ -1,0 +1,110 @@
+[
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-13",
+    "open": 23350,
+    "high": 24400,
+    "low": 23100,
+    "close": 23250,
+    "volume": 80933,
+    "change_rate": -0.21,
+    "change_price": -50
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-16",
+    "open": 23300,
+    "high": 23900,
+    "low": 22250,
+    "close": 22350,
+    "volume": 79889,
+    "change_rate": -3.87,
+    "change_price": -900
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-17",
+    "open": 22300,
+    "high": 23450,
+    "low": 22100,
+    "close": 22350,
+    "volume": 68728,
+    "change_rate": 0.0,
+    "change_price": 0
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-18",
+    "open": 22500,
+    "high": 29050,
+    "low": 22200,
+    "close": 29050,
+    "volume": 1047633,
+    "change_rate": 29.98,
+    "change_price": 6700
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-19",
+    "open": 30750,
+    "high": 30800,
+    "low": 30500,
+    "close": 30800,
+    "volume": 343319,
+    "change_rate": 6.02,
+    "change_price": 1750
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-20",
+    "open": 32300,
+    "high": 35800,
+    "low": 29550,
+    "close": 30600,
+    "volume": 4120588,
+    "change_rate": -0.65,
+    "change_price": -200
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-23",
+    "open": 29850,
+    "high": 34900,
+    "low": 29400,
+    "close": 32450,
+    "volume": 3135723,
+    "change_rate": 6.05,
+    "change_price": 1850
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-24",
+    "open": 33350,
+    "high": 34700,
+    "low": 30550,
+    "close": 33500,
+    "volume": 1266516,
+    "change_rate": 3.24,
+    "change_price": 1050
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-25",
+    "open": 33950,
+    "high": 35500,
+    "low": 32400,
+    "close": 33450,
+    "volume": 1101053,
+    "change_rate": -0.15,
+    "change_price": -50
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-19",
+    "recent_days": 5,
+    "recent_change_rate": 32.47,
+    "up_days": 2,
+    "down_days": 2,
+    "trend": "최근 5거래일 상승"
+  },
+  {
+    "stock_name": "스튜디오드래곤",
+    "stock_code": "253450",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": 8.6,
+    "up_days": 3,
+    "down_days": 2,
+    "trend": "최근 5거래일 상승"
+  }
+]

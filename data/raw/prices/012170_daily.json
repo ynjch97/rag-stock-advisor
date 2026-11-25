@@ -1,0 +1,110 @@
+[
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-13",
+    "open": 3500,
+    "high": 3590,
+    "low": 3335,
+    "close": 3550,
+    "volume": 13536,
+    "change_rate": 1.43,
+    "change_price": 50
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-16",
+    "open": 3550,
+    "high": 3595,
+    "low": 3310,
+    "close": 3550,
+    "volume": 6105,
+    "change_rate": 0.0,
+    "change_price": 0
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-17",
+    "open": 3605,
+    "high": 3605,
+    "low": 3390,
+    "close": 3390,
+    "volume": 9950,
+    "change_rate": -4.51,
+    "change_price": -160
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-18",
+    "open": 3395,
+    "high": 3455,
+    "low": 3140,
+    "close": 3345,
+    "volume": 5893,
+    "change_rate": -1.33,
+    "change_price": -45
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-19",
+    "open": 3345,
+    "high": 3500,
+    "low": 3140,
+    "close": 3355,
+    "volume": 13913,
+    "change_rate": 0.3,
+    "change_price": 10
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-20",
+    "open": 3290,
+    "high": 3500,
+    "low": 3170,
+    "close": 3250,
+    "volume": 10375,
+    "change_rate": -3.13,
+    "change_price": -105
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-23",
+    "open": 3250,
+    "high": 3275,
+    "low": 3150,
+    "close": 3195,
+    "volume": 1961,
+    "change_rate": -1.69,
+    "change_price": -55
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-24",
+    "open": 3200,
+    "high": 3380,
+    "low": 2955,
+    "close": 3205,
+    "volume": 7324,
+    "change_rate": 0.31,
+    "change_price": 10
+  },
+  {
+    "stock_name": "아센디오",
+    "stock_code": "012170",
+    "base_date": "2026-11-25",
+    "open": 3205,
+    "high": 3400,
+    "low": 3200,
+    "close": 3340,
+    "volume": 9350,
+    "change_rate": 4.21,
+    "change_price": 135
+  }
+]

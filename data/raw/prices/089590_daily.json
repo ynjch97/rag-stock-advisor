@@ -1,0 +1,110 @@
+[
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-13",
+    "open": 7190,
+    "high": 7300,
+    "low": 6710,
+    "close": 6860,
+    "volume": 1760862,
+    "change_rate": -7.17,
+    "change_price": -530
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-16",
+    "open": 6850,
+    "high": 7690,
+    "low": 6610,
+    "close": 7210,
+    "volume": 1058149,
+    "change_rate": 5.1,
+    "change_price": 350
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-17",
+    "open": 7410,
+    "high": 7640,
+    "low": 7260,
+    "close": 7500,
+    "volume": 935730,
+    "change_rate": 4.02,
+    "change_price": 290
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-18",
+    "open": 7450,
+    "high": 7970,
+    "low": 7230,
+    "close": 7650,
+    "volume": 890452,
+    "change_rate": 2.0,
+    "change_price": 150
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-19",
+    "open": 8180,
+    "high": 9370,
+    "low": 7860,
+    "close": 8500,
+    "volume": 9599319,
+    "change_rate": 11.11,
+    "change_price": 850
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-20",
+    "open": 8370,
+    "high": 8850,
+    "low": 8110,
+    "close": 8420,
+    "volume": 2363704,
+    "change_rate": -0.94,
+    "change_price": -80
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-23",
+    "open": 8420,
+    "high": 8520,
+    "low": 7660,
+    "close": 7770,
+    "volume": 1738971,
+    "change_rate": -7.72,
+    "change_price": -650
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-24",
+    "open": 7810,
+    "high": 8310,
+    "low": 7570,
+    "close": 7880,
+    "volume": 1657095,
+    "change_rate": 1.42,
+    "change_price": 110
+  },
+  {
+    "stock_name": "제주항공",
+    "stock_code": "089590",
+    "base_date": "2026-11-25",
+    "open": 7900,
+    "high": 8510,
+    "low": 7710,
+    "close": 8220,
+    "volume": 1001154,
+    "change_rate": 4.31,
+    "change_price": 340
+  }
+]

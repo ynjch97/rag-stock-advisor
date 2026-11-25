@@ -1,0 +1,110 @@
+[
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-13",
+    "open": 39200,
+    "high": 41250,
+    "low": 39000,
+    "close": 40200,
+    "volume": 69944,
+    "change_rate": 2.29,
+    "change_price": 900
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-16",
+    "open": 40150,
+    "high": 41250,
+    "low": 38900,
+    "close": 39750,
+    "volume": 42638,
+    "change_rate": -1.12,
+    "change_price": -450
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-17",
+    "open": 38400,
+    "high": 41100,
+    "low": 38400,
+    "close": 39700,
+    "volume": 38721,
+    "change_rate": -0.13,
+    "change_price": -50
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-18",
+    "open": 39550,
+    "high": 49200,
+    "low": 38850,
+    "close": 46750,
+    "volume": 314600,
+    "change_rate": 17.76,
+    "change_price": 7050
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-19",
+    "open": 47000,
+    "high": 54700,
+    "low": 46750,
+    "close": 52700,
+    "volume": 1570856,
+    "change_rate": 12.73,
+    "change_price": 5950
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-20",
+    "open": 52300,
+    "high": 52700,
+    "low": 48700,
+    "close": 49300,
+    "volume": 472425,
+    "change_rate": -6.45,
+    "change_price": -3400
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-23",
+    "open": 47850,
+    "high": 53500,
+    "low": 46800,
+    "close": 50400,
+    "volume": 446359,
+    "change_rate": 2.23,
+    "change_price": 1100
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-24",
+    "open": 51700,
+    "high": 51700,
+    "low": 47600,
+    "close": 49700,
+    "volume": 285200,
+    "change_rate": -1.39,
+    "change_price": -700
+  },
+  {
+    "stock_name": "CJ ENM",
+    "stock_code": "035760",
+    "base_date": "2026-11-25",
+    "open": 49600,
+    "high": 53600,
+    "low": 49300,
+    "close": 53000,
+    "volume": 274600,
+    "change_rate": 6.64,
+    "change_price": 3300
+  }
+]
