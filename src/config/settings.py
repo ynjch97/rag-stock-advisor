@@ -35,10 +35,10 @@ class Settings:
     agent_max_stock_refreshes: int = 1
     agent_max_discovery_candidates: int = 10  # 종목 발굴 시 검토할 후보 수 상한
     agent_max_indexing_calls: int = 2
-    agent_max_index_chunks: int = 1000  # 인덱싱 1회 처리량 1,000청크
-    agent_max_index_characters: int = 500000  # 인덱싱 1회 처리량 50만 문자
-    agent_timeout_seconds: float = 120.0  # 초기 조회, Agent 반복 시간 상한
-    agent_request_timeout_seconds: float = 20.0 # 개별 요청별 타임아웃
+    agent_max_index_chunks: int = 10000  # 인덱싱 1회 처리량 청크
+    agent_max_index_characters: int = 1000000  # 인덱싱 1회 처리량 100만 문자
+    agent_timeout_seconds: float = 240.0  # 초기 조회, Agent 반복 시간 상한
+    agent_request_timeout_seconds: float = 240.0 # 개별 요청별 타임아웃
     agent_news_refresh_seconds: float = 900.0  # 동일 종목·기간·페이지 재수집 대기
 
 
@@ -86,10 +86,10 @@ def load_settings(env_path: Path = ENV_PATH) -> Settings:
         agent_max_stock_refreshes=get_limit("AGENT_MAX_STOCK_REFRESHES", 1),
         agent_max_discovery_candidates=get_limit("AGENT_MAX_DISCOVERY_CANDIDATES", 10),
         agent_max_indexing_calls=get_limit("AGENT_MAX_INDEXING_CALLS", 2),
-        agent_max_index_chunks=get_limit("AGENT_MAX_INDEX_CHUNKS", 1000),
-        agent_max_index_characters=get_limit("AGENT_MAX_INDEX_CHARACTERS", 500000),
-        agent_timeout_seconds=get_limit("AGENT_TIMEOUT_SECONDS", 120.0),
-        agent_request_timeout_seconds=get_limit("AGENT_REQUEST_TIMEOUT_SECONDS", 20.0),
+        agent_max_index_chunks=get_limit("AGENT_MAX_INDEX_CHUNKS", 10000),
+        agent_max_index_characters=get_limit("AGENT_MAX_INDEX_CHARACTERS", 1000000),
+        agent_timeout_seconds=get_limit("AGENT_TIMEOUT_SECONDS", 240.0),
+        agent_request_timeout_seconds=get_limit("AGENT_REQUEST_TIMEOUT_SECONDS", 240.0),
         agent_news_refresh_seconds=get_limit("AGENT_NEWS_REFRESH_SECONDS", 900.0),
     )
 

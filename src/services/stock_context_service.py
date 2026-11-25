@@ -81,6 +81,7 @@ def _build_news_context(news_data: list[NewsRecord]) -> list[NewsRecord]:
 # 실행 이력·중단 사유와 근거 부족을 컨텍스트에 붙여 최종 응답의 한계 표시 지원
 def attach_agent_results(
     contexts: list[StockContext], history: list[AgentExecutionRecord], notes: list[str],
+    *, processing_notices: list[str] | None = None,
 ) -> None:
     for context in contexts:
         issues = list(context.get("issues", [])) + notes
@@ -91,4 +92,7 @@ def attach_agent_results(
         elif not context["news"]:
             issues.append("질문 기간에 맞는 뉴스 근거가 부족합니다.")
         context["issues"] = list(dict.fromkeys(issues))
+        context["processing_notices"] = list(dict.fromkeys(
+            context.get("processing_notices", []) + list(processing_notices or [])
+        ))
         context["agent_history"] = [record.to_dict() for record in history]

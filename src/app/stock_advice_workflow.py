@@ -300,6 +300,7 @@ def _evidence_signature(context: StockContext) -> tuple:
 # 결정, 페이지·인덱싱, 시간 제한을 코드로 강제
 def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_settings: Settings, deadline: float) -> dict:
     history, notes, indexing_calls = [], [], 0
+    processing_notices = []
     for _ in range(app_settings.agent_max_decisions):
         try:
             remaining_timeout(deadline)
@@ -390,14 +391,14 @@ def _run_agent_loop(parsed: ParsedQuestion, contexts: list[StockContext], app_se
                     for item in _allowed_agent_actions(parsed, contexts, history, indexing_calls, app_settings)
                 )):
                     continue
-                notes.append("추가 기사·근거가 늘지 않아 반복 조사를 종료했습니다.")
+                processing_notices.append("추가 기사·근거가 늘지 않아 반복 조사를 종료했습니다.")
                 break
         except TOOL_ERRORS as error:
             notes.append(_tool_error("Agent 처리", error))
             break
     else:
         notes.append(f"Agent 결정 횟수 상한({app_settings.agent_max_decisions}회)에 도달했습니다.")
-    attach_agent_results(contexts, history, notes)
+    attach_agent_results(contexts, history, notes, processing_notices=processing_notices)
     return {"parsed_question": parsed, "history": history, "notes": notes}
 
 

@@ -98,6 +98,30 @@ def test_all_candidates_use_shared_analysis(environment):
     assert env["parsed"].discovered_candidates == ()
 
 
+# 근거가 늘지 않은 정상 종료는 오류 사유가 아닌 처리 안내로 전달
+def test_unchanged_evidence_is_reported_as_processing_notice(environment):
+    env = environment
+    parsed = replace(env["parsed"], discovered_candidates=(env["candidates"][0],))
+    stock = parsed.analysis_stocks[0]
+    context = env["builder"](parsed, stock, env["config"])
+    context["news"] = env["search"]("질문", stock_code=stock.stock_code)
+    context["news_search_status"] = "found"
+    env["collector"].side_effect = None
+    env["collector"].return_value = {"new_articles": 0, "collection": env["collection"](stock)}
+    env["agent"].side_effect = None
+    env["agent"].return_value = AgentDecision("collect_news", "근거 보충", stock, news_start=1)
+
+    result = workflow._run_agent_loop(parsed, [context], env["config"], time.monotonic() + 60)
+
+    notice = "추가 기사·근거가 늘지 않아 반복 조사를 종료했습니다."
+    assert context["processing_notices"] == [notice]
+    assert context["issues"] == [] and result["notes"] == []
+    answer = workflow.generate_stock_advice(context)
+    assert f"처리 안내:\n- {notice}" in answer
+    assert "데이터 확인 한계:" not in answer
+    assert env["agent"].call_count == 1
+
+
 # 첫 페이지 원문 0건이어도 다음 반복의 Agent 결정으로 두 번째 페이지 조회
 def test_discovery_pages_share_agent_loop(environment):
     env = environment

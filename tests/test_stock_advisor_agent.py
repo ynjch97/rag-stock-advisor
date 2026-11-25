@@ -52,7 +52,6 @@ def test_agent_collect_news_decision(environment):
 @pytest.mark.parametrize("overrides", [
     {"stock_code": "005930"}, {"news_start": 31}, {"news_start": 61}, {"reason": ""},
     {"action": "unknown"}, {"search_query": "임의 표현"},
-    {"action": "respond", "news_start": None},
 ])
 def test_invalid_agent_decision(environment, overrides):
     with pytest.raises(ValueError):
@@ -67,6 +66,29 @@ def test_agent_terminal_and_rewritten_query(environment):
     assert result.search_query == "SK하이닉스 실적"
     with pytest.raises(ValueError):
         _decide(environment, action="search_news", news_start=None, search_query=" ")
+
+
+# 종료 결정의 불필요한 인자는 제거하되 허용되지 않은 종료 작업은 거부
+@pytest.mark.parametrize("action", ["respond", "stop"])
+@pytest.mark.parametrize("arguments", [
+    {"stock_code": "005930", "search_query": None, "news_start": None},
+    {"stock_code": None, "search_query": "이전 검색어", "news_start": None},
+    {"stock_code": None, "search_query": None, "news_start": 31},
+    {"stock_code": "000660", "search_query": "", "news_start": 1},
+])
+def test_terminal_decisions_ignore_unused_arguments(environment, action, arguments):
+    environment[-1].append({"action": action})
+    decision = _decide(environment, action=action, **arguments)
+    assert decision.action == action
+    assert decision.reason == environment[2]["reason"]
+    assert decision.stock is None and decision.search_query is None and decision.news_start is None
+
+
+@pytest.mark.parametrize("action", ["respond", "stop"])
+def test_terminal_decisions_still_require_allowed_action(environment, action):
+    environment[-1][:] = [{"action": "collect_news", "stock_code": "000660", "news_start": 1}]
+    with pytest.raises(ValueError, match="outside the allowed budget"):
+        _decide(environment, action=action)
 
 
 # 외부 API 오류는 본문·인증정보를 노출하지 않고 종료 사유로 변환

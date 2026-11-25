@@ -51,6 +51,19 @@ def test_empty_news_and_sample_summary():
     assert "샘플 뉴스 흐름은" in answer and "샘플 요약" in answer
 
 
+# 정상적인 조사 종료 안내와 실제 데이터 한계를 별도 제목으로 표시
+@pytest.mark.parametrize("issues", [[], ["Agent 처리 실패 (ValueError)."]])
+def test_processing_notice_is_separate_from_data_limitations(issues):
+    notice = "추가 기사·근거가 늘지 않아 반복 조사를 종료했습니다."
+    context = _context()
+    context.update(issues=issues, processing_notices=[notice])
+    answer = generate_stock_advice(context)
+    assert f"처리 안내:\n- {notice}" in answer
+    assert ("데이터 확인 한계:" in answer) == bool(issues)
+    if issues:
+        assert notice not in answer.split("데이터 확인 한계:")[1].split("처리 안내:")[0]
+
+
 # 상승·하락 질문에서도 내부 등락률 값은 노출하지 않고 인과관계를 단정하지 않음
 @pytest.mark.parametrize("intent, rate, expected", [
     ("rise_reason", 1, "상승은 확인되지만"), ("rise_reason", -1, "뚜렷한 상승이 확인되지"),

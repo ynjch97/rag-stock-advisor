@@ -148,7 +148,8 @@ def test_no_progress_stops_early(environment):
     agent.return_value = AgentDecision("collect_news", "없음", parsed.stocks[0], news_start=1)
     _run(environment)
     assert agent.call_count == 1
-    assert any("늘지 않아" in note for note in contexts[0]["issues"])
+    assert any("늘지 않아" in note for note in contexts[0]["processing_notices"])
+    assert not any("늘지 않아" in issue for issue in contexts[0]["issues"])
 
 
 # 반복 검색 표현 차단

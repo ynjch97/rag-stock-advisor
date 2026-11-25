@@ -37,6 +37,8 @@ def generate_stock_advice(context: StockContext) -> str:
             conclusion,
             *(["", "데이터 확인 한계:", *[f"- {issue}" for issue in context["issues"]]]
               if context.get("issues") else []),
+            *(["", "처리 안내:", *[f"- {notice}" for notice in context["processing_notices"]]]
+              if context.get("processing_notices") else []),
             "",
             "※ 이 응답은 투자 참고용이며 최종 투자 판단은 본인 책임입니다.",
         ]

@@ -112,8 +112,9 @@ def decide_next_action(
         raise ValueError("OpenAI Agent decision does not match the required schema.") from None
     stock = next((stock for stock in parsed_question.analysis_stocks if stock.stock_code == output.stock_code), None)
     if output.action in ("respond", "stop"):
-        if output.stock_code is not None or output.search_query is not None or output.news_start is not None:
-            raise ValueError("Terminal Agent decisions must not include tool arguments.")
+        # 외부 조회를 하지 않는 종료 결정의 불필요한 인자만 제거; 허용 작업 검증은 유지
+        output = output.model_copy(update={"stock_code": None, "search_query": None, "news_start": None})
+        stock = None
     elif output.action == "discover_stocks":
         if (contexts or parsed_question.discovery is None or parsed_question.intent != "stock_discovery"
                 or output.stock_code is not None or output.search_query is not None or output.news_start is None):
