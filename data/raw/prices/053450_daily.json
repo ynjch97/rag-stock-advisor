@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-19",
+    "open": 3200,
+    "high": 3690,
+    "low": 3055,
+    "close": 3150,
+    "volume": 4538463,
+    "change_rate": -1.72,
+    "change_price": -55
+  },
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-20",
+    "open": 3050,
+    "high": 3160,
+    "low": 2595,
+    "close": 2705,
+    "volume": 923583,
+    "change_rate": -14.13,
+    "change_price": -445
+  },
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-23",
+    "open": 2685,
+    "high": 2790,
+    "low": 2510,
+    "close": 2625,
+    "volume": 440253,
+    "change_rate": -2.96,
+    "change_price": -80
+  },
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-24",
+    "open": 2605,
+    "high": 2850,
+    "low": 2530,
+    "close": 2585,
+    "volume": 318928,
+    "change_rate": -1.52,
+    "change_price": -40
+  },
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-25",
+    "open": 2605,
+    "high": 2655,
+    "low": 2505,
+    "close": 2535,
+    "volume": 157771,
+    "change_rate": -1.93,
+    "change_price": -50
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "삼성전기",
+    "stock_code": "009150",
+    "base_date": "2026-11-19",
+    "open": 810000,
+    "high": 886000,
+    "low": 797000,
+    "close": 884000,
+    "volume": 1561922,
+    "change_rate": 7.8,
+    "change_price": 64000
+  },
+  {
+    "stock_name": "삼성전기",
+    "stock_code": "009150",
+    "base_date": "2026-11-20",
+    "open": 831000,
+    "high": 847000,
+    "low": 763000,
+    "close": 767000,
+    "volume": 1825164,
+    "change_rate": -13.24,
+    "change_price": -117000
+  },
+  {
+    "stock_name": "삼성전기",
+    "stock_code": "009150",
+    "base_date": "2026-11-23",
+    "open": 740000,
+    "high": 799000,
+    "low": 722000,
+    "close": 797000,
+    "volume": 1778198,
+    "change_rate": 3.91,
+    "change_price": 30000
+  },
+  {
+    "stock_name": "삼성전기",
+    "stock_code": "009150",
+    "base_date": "2026-11-24",
+    "open": 900000,
+    "high": 900000,
+    "low": 812000,
+    "close": 820000,
+    "volume": 1893799,
+    "change_rate": 2.89,
+    "change_price": 23000
+  },
+  {
+    "stock_name": "삼성전기",
+    "stock_code": "009150",
+    "base_date": "2026-11-25",
+    "open": 812000,
+    "high": 827000,
+    "low": 740000,
+    "close": 748000,
+    "volume": 1585644,
+    "change_rate": -8.78,
+    "change_price": -72000
+  }
+]

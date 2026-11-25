@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "세코닉스",
+    "stock_code": "053450",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": -19.52,
+    "up_days": 0,
+    "down_days": 5,
+    "trend": "최근 5거래일 하락"
+  }
+]

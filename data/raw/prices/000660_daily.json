@@ -106,5 +106,65 @@
     "volume": 5303969,
     "change_rate": 5.82,
     "change_price": 64000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-19",
+    "open": 1154000,
+    "high": 1192000,
+    "low": 1114000,
+    "close": 1190000,
+    "volume": 3743448,
+    "change_rate": 2.23,
+    "change_price": 26000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-20",
+    "open": 1129000,
+    "high": 1129000,
+    "low": 1092000,
+    "close": 1099000,
+    "volume": 4916596,
+    "change_rate": -7.65,
+    "change_price": -91000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-23",
+    "open": 1051000,
+    "high": 1108000,
+    "low": 1037000,
+    "close": 1102000,
+    "volume": 6240664,
+    "change_rate": 0.27,
+    "change_price": 3000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-24",
+    "open": 1180000,
+    "high": 1233000,
+    "low": 1108000,
+    "close": 1113000,
+    "volume": 6481000,
+    "change_rate": 1.0,
+    "change_price": 11000
+  },
+  {
+    "stock_name": "SK하이닉스",
+    "stock_code": "000660",
+    "base_date": "2026-11-25",
+    "open": 1093000,
+    "high": 1105000,
+    "low": 1003000,
+    "close": 1014000,
+    "volume": 6119204,
+    "change_rate": -8.89,
+    "change_price": -99000
   }
 ]

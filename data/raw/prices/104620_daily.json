@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "노랑풍선",
+    "stock_code": "104620",
+    "base_date": "2026-11-19",
+    "open": 4140,
+    "high": 4140,
+    "low": 4075,
+    "close": 4140,
+    "volume": 1015056,
+    "change_rate": 5.88,
+    "change_price": 230
+  },
+  {
+    "stock_name": "노랑풍선",
+    "stock_code": "104620",
+    "base_date": "2026-11-20",
+    "open": 4265,
+    "high": 5220,
+    "low": 4220,
+    "close": 4475,
+    "volume": 24084141,
+    "change_rate": 8.09,
+    "change_price": 335
+  },
+  {
+    "stock_name": "노랑풍선",
+    "stock_code": "104620",
+    "base_date": "2026-11-23",
+    "open": 4600,
+    "high": 5260,
+    "low": 4520,
+    "close": 4660,
+    "volume": 12251903,
+    "change_rate": 4.13,
+    "change_price": 185
+  },
+  {
+    "stock_name": "노랑풍선",
+    "stock_code": "104620",
+    "base_date": "2026-11-24",
+    "open": 4575,
+    "high": 4765,
+    "low": 4380,
+    "close": 4530,
+    "volume": 3303015,
+    "change_rate": -2.79,
+    "change_price": -130
+  },
+  {
+    "stock_name": "노랑풍선",
+    "stock_code": "104620",
+    "base_date": "2026-11-25",
+    "open": 4660,
+    "high": 5250,
+    "low": 4250,
+    "close": 4405,
+    "volume": 15254075,
+    "change_rate": -2.76,
+    "change_price": -125
+  }
+]

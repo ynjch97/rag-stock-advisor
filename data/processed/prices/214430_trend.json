@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": -8.38,
+    "up_days": 2,
+    "down_days": 2,
+    "trend": "최근 5거래일 하락"
+  }
+]

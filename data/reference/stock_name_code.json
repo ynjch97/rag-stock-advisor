@@ -3385,11 +3385,6 @@
     "market": "KOSPI"
   },
   {
-    "stock_name": "RISE 26-11 회사채(AA-이상)액티브",
-    "stock_code": "0122W0",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "경동인베스트",
     "stock_code": "012320",
     "market": "KOSPI"
@@ -5488,6 +5483,16 @@
     "stock_name": "코리아나",
     "stock_code": "027050",
     "market": "KOSDAQ"
+  },
+  {
+    "stock_name": "PLUS 글로벌AI병목인프라액티브",
+    "stock_code": "0270V0",
+    "market": "KOSPI"
+  },
+  {
+    "stock_name": "TIGER 글로벌LLM액티브",
+    "stock_code": "0271B0",
+    "market": "KOSPI"
   },
   {
     "stock_name": "아주IB투자",
@@ -13460,6 +13465,11 @@
     "market": "KOSPI"
   },
   {
+    "stock_name": "하나에어로",
+    "stock_code": "271160",
+    "market": "KOSDAQ"
+  },
+  {
     "stock_name": "오리온",
     "stock_code": "271560",
     "market": "KOSPI"
@@ -16685,11 +16695,6 @@
     "market": "KOSDAQ"
   },
   {
-    "stock_name": "코람코더원리츠",
-    "stock_code": "417310",
-    "market": "KOSPI"
-  },
-  {
     "stock_name": "RISE 글로벌수소경제",
     "stock_code": "417450",
     "market": "KOSPI"
@@ -19638,6 +19643,11 @@
     "stock_name": "HANARO 바이오코리아액티브",
     "stock_code": "498050",
     "market": "KOSPI"
+  },
+  {
+    "stock_name": "엠비디",
+    "stock_code": "498150",
+    "market": "KOSDAQ"
   },
   {
     "stock_name": "파워 종합채권(AA-이상)액티브",

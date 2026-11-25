@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "LK삼양",
+    "stock_code": "225190",
+    "base_date": "2026-11-19",
+    "open": 4235,
+    "high": 4435,
+    "low": 4030,
+    "close": 4340,
+    "volume": 983782,
+    "change_rate": 1.88,
+    "change_price": 80
+  },
+  {
+    "stock_name": "LK삼양",
+    "stock_code": "225190",
+    "base_date": "2026-11-20",
+    "open": 4200,
+    "high": 4200,
+    "low": 3765,
+    "close": 3780,
+    "volume": 374973,
+    "change_rate": -12.9,
+    "change_price": -560
+  },
+  {
+    "stock_name": "LK삼양",
+    "stock_code": "225190",
+    "base_date": "2026-11-23",
+    "open": 3735,
+    "high": 3800,
+    "low": 3510,
+    "close": 3765,
+    "volume": 221434,
+    "change_rate": -0.4,
+    "change_price": -15
+  },
+  {
+    "stock_name": "LK삼양",
+    "stock_code": "225190",
+    "base_date": "2026-11-24",
+    "open": 3800,
+    "high": 3820,
+    "low": 3550,
+    "close": 3580,
+    "volume": 229648,
+    "change_rate": -4.91,
+    "change_price": -185
+  },
+  {
+    "stock_name": "LK삼양",
+    "stock_code": "225190",
+    "base_date": "2026-11-25",
+    "open": 3660,
+    "high": 3660,
+    "low": 3500,
+    "close": 3505,
+    "volume": 114461,
+    "change_rate": -2.09,
+    "change_price": -75
+  }
+]

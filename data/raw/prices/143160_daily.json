@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "아이디스",
+    "stock_code": "143160",
+    "base_date": "2026-11-19",
+    "open": 14020,
+    "high": 14070,
+    "low": 13210,
+    "close": 13890,
+    "volume": 2366,
+    "change_rate": -1.21,
+    "change_price": -170
+  },
+  {
+    "stock_name": "아이디스",
+    "stock_code": "143160",
+    "base_date": "2026-11-20",
+    "open": 13880,
+    "high": 13900,
+    "low": 13300,
+    "close": 13620,
+    "volume": 2673,
+    "change_rate": -1.94,
+    "change_price": -270
+  },
+  {
+    "stock_name": "아이디스",
+    "stock_code": "143160",
+    "base_date": "2026-11-23",
+    "open": 13620,
+    "high": 13640,
+    "low": 13100,
+    "close": 13270,
+    "volume": 3594,
+    "change_rate": -2.57,
+    "change_price": -350
+  },
+  {
+    "stock_name": "아이디스",
+    "stock_code": "143160",
+    "base_date": "2026-11-24",
+    "open": 13480,
+    "high": 13480,
+    "low": 12800,
+    "close": 13170,
+    "volume": 3106,
+    "change_rate": -0.75,
+    "change_price": -100
+  },
+  {
+    "stock_name": "아이디스",
+    "stock_code": "143160",
+    "base_date": "2026-11-25",
+    "open": 13150,
+    "high": 13160,
+    "low": 12650,
+    "close": 12680,
+    "volume": 2838,
+    "change_rate": -3.72,
+    "change_price": -490
+  }
+]

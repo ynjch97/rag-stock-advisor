@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-19",
+    "open": 268500,
+    "high": 271500,
+    "low": 258500,
+    "close": 267500,
+    "volume": 489129,
+    "change_rate": -0.19,
+    "change_price": -500
+  },
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-20",
+    "open": 262000,
+    "high": 263000,
+    "low": 252500,
+    "close": 253500,
+    "volume": 590428,
+    "change_rate": -5.23,
+    "change_price": -14000
+  },
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-23",
+    "open": 247000,
+    "high": 250500,
+    "low": 240500,
+    "close": 248500,
+    "volume": 650589,
+    "change_rate": -1.97,
+    "change_price": -5000
+  },
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-24",
+    "open": 253000,
+    "high": 279000,
+    "low": 252000,
+    "close": 264500,
+    "volume": 1263839,
+    "change_rate": 6.44,
+    "change_price": 16000
+  },
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-25",
+    "open": 262500,
+    "high": 274500,
+    "low": 262000,
+    "close": 265500,
+    "volume": 649455,
+    "change_rate": 0.38,
+    "change_price": 1000
+  }
+]

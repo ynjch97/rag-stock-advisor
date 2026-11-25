@@ -1,0 +1,12 @@
+[
+  {
+    "stock_name": "현대차",
+    "stock_code": "005380",
+    "base_date": "2026-11-25",
+    "recent_days": 5,
+    "recent_change_rate": -0.75,
+    "up_days": 2,
+    "down_days": 3,
+    "trend": "최근 5거래일 하락"
+  }
+]

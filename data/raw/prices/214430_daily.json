@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-19",
+    "open": 56500,
+    "high": 61900,
+    "low": 53500,
+    "close": 58500,
+    "volume": 43234,
+    "change_rate": 4.09,
+    "change_price": 2300
+  },
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-20",
+    "open": 57400,
+    "high": 57500,
+    "low": 52600,
+    "close": 53100,
+    "volume": 40979,
+    "change_rate": -9.23,
+    "change_price": -5400
+  },
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-23",
+    "open": 51000,
+    "high": 53000,
+    "low": 49700,
+    "close": 52500,
+    "volume": 42734,
+    "change_rate": -1.13,
+    "change_price": -600
+  },
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-24",
+    "open": 54100,
+    "high": 56000,
+    "low": 51500,
+    "close": 52500,
+    "volume": 47384,
+    "change_rate": 0.0,
+    "change_price": 0
+  },
+  {
+    "stock_name": "아이쓰리시스템",
+    "stock_code": "214430",
+    "base_date": "2026-11-25",
+    "open": 53700,
+    "high": 55500,
+    "low": 50900,
+    "close": 53600,
+    "volume": 31507,
+    "change_rate": 2.1,
+    "change_price": 1100
+  }
+]

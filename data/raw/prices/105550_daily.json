@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "엣지파운드리",
+    "stock_code": "105550",
+    "base_date": "2026-11-19",
+    "open": 1145,
+    "high": 1219,
+    "low": 1145,
+    "close": 1204,
+    "volume": 59211,
+    "change_rate": 6.55,
+    "change_price": 74
+  },
+  {
+    "stock_name": "엣지파운드리",
+    "stock_code": "105550",
+    "base_date": "2026-11-20",
+    "open": 1204,
+    "high": 1208,
+    "low": 1105,
+    "close": 1155,
+    "volume": 48753,
+    "change_rate": -4.07,
+    "change_price": -49
+  },
+  {
+    "stock_name": "엣지파운드리",
+    "stock_code": "105550",
+    "base_date": "2026-11-23",
+    "open": 1122,
+    "high": 1155,
+    "low": 1059,
+    "close": 1129,
+    "volume": 29672,
+    "change_rate": -2.25,
+    "change_price": -26
+  },
+  {
+    "stock_name": "엣지파운드리",
+    "stock_code": "105550",
+    "base_date": "2026-11-24",
+    "open": 1130,
+    "high": 1177,
+    "low": 1103,
+    "close": 1160,
+    "volume": 59946,
+    "change_rate": 2.75,
+    "change_price": 31
+  },
+  {
+    "stock_name": "엣지파운드리",
+    "stock_code": "105550",
+    "base_date": "2026-11-25",
+    "open": 1176,
+    "high": 1177,
+    "low": 1122,
+    "close": 1158,
+    "volume": 22490,
+    "change_rate": -0.17,
+    "change_price": -2
+  }
+]

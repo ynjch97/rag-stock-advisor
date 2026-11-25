@@ -1,0 +1,62 @@
+[
+  {
+    "stock_name": "카티스",
+    "stock_code": "140430",
+    "base_date": "2026-11-19",
+    "open": 2375,
+    "high": 2730,
+    "low": 2290,
+    "close": 2455,
+    "volume": 1358528,
+    "change_rate": 4.03,
+    "change_price": 95
+  },
+  {
+    "stock_name": "카티스",
+    "stock_code": "140430",
+    "base_date": "2026-11-20",
+    "open": 2405,
+    "high": 3050,
+    "low": 2405,
+    "close": 2740,
+    "volume": 2714860,
+    "change_rate": 11.61,
+    "change_price": 285
+  },
+  {
+    "stock_name": "카티스",
+    "stock_code": "140430",
+    "base_date": "2026-11-23",
+    "open": 2810,
+    "high": 2890,
+    "low": 2405,
+    "close": 2475,
+    "volume": 951787,
+    "change_rate": -9.67,
+    "change_price": -265
+  },
+  {
+    "stock_name": "카티스",
+    "stock_code": "140430",
+    "base_date": "2026-11-24",
+    "open": 2510,
+    "high": 2565,
+    "low": 2345,
+    "close": 2365,
+    "volume": 423832,
+    "change_rate": -4.44,
+    "change_price": -110
+  },
+  {
+    "stock_name": "카티스",
+    "stock_code": "140430",
+    "base_date": "2026-11-25",
+    "open": 2450,
+    "high": 2470,
+    "low": 2145,
+    "close": 2300,
+    "volume": 407892,
+    "change_rate": -2.75,
+    "change_price": -65
+  }
+]
