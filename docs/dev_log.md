@@ -306,12 +306,14 @@ BM25 score 3.669292259886812
   - `stock_discovery` 의도 추가, 테마·요청 개수 추출 추가
 - `llm_stock_discovery_analyzer.py`
   - OpenAI Tool Calling 으로 검색한 뉴스 원문에서 기업 후보, 선정 이유, 인용 근거 추출
+  - LLM이 `direct` 조건의 기업을 분류할 수 있도록 프롬프트 작성
+    - (direct : 실제 사업 연관성 / incidental : 단순 언급 / negated : 사업 영위 부인 / uncertain : 추정·계획 또는 불명확한 근거)
 - `stock_question_parser.py`
   - 발굴 질문은 종목명이 없어도 정상 처리하는 분기
   - 기존 지정 종목 검증은 유지
 - `stock_discovery_service.py`
-  - 검색 근거에서 기업 후보 추출 -> 기준정보 코드 매핑
-  - 중복 제거, 사업 연관성 등 실제 인용 검증
+  - 검색 근거에서 기업 후보 추출 -> 종목코드 매핑
+  - 원문 확보 기사만 분석 대상 + 중복 제거, 사업 연관성 등 실제 인용 검증
 - `news_collector.py`
   - 종목코드 없이 테마로 검색하는 `collect_theme_news()` 추가
 - `stock_advisor_agent.py`
